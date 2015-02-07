@@ -1,0 +1,23 @@
+{
+  "id": "kitty-sprite",
+  "description": "Kitty Sprite File",
+  "spriteSheetUrl": "cats.png",
+  "transparentColor": [255, 0, 255],
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameSetDefinitions": {
+    "run": {
+      "rate": 10,
+      "frames": [
+        { "x": 74, "y": 0 },
+        { "x": 114, "y": 0 }
+      ]
+    },
+    "idle": {
+      "rate": 1,
+      "frames": [
+        { "x": 0, "y": 0 }
+      ]
+    }
+  }
+}

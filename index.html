@@ -3,7 +3,68 @@
 <head lang="en">
   <meta charset="UTF-8">
   <title>Kitties Demo</title>
+  <style>
+    .viewport { width: 600px; height: 600px; }
+    canvas { position: absolute; }
+  </style>
 </head>
 <body>
+  <div class="viewport" data-div-viewport></div>
+  <script src="dist/kitties.js"></script>
+  <script>
+    var Scheduler;
+    var spriteAnimation;
+    var foo;
+
+    use(['Obj', 'Injector'], function(Obj, Injector) {
+      Injector.addInterceptor(/clone (.*)/, function(module) {
+        return Obj.clone(module);
+      });
+    });
+
+    use([
+      'clone Sprite', 
+      'clone Scene',
+      'SpriteAnimation',
+      'SpriteLayer',
+      'BackgroundLayer',
+      'Scheduler', 
+      'div-viewport'],
+    function(sprite, scene, SpriteAnimation, SpriteLayer, BackgroundLayer, Scheduler, viewportContainer) {
+      'use strict';
+
+      var backgroundLayer = BackgroundLayer(600, 600);
+      viewportContainer.appendChild(backgroundLayer.getLayer());
+
+      var spriteLayer = SpriteLayer(600, 600);
+      viewportContainer.appendChild(spriteLayer.getLayer());
+
+      scene.load('assets/kitty-world.json').then(function(scene) {
+        backgroundLayer.setBackground(scene.layers.layer1.background);
+        Scheduler(function() {
+          backgroundLayer.draw();
+        });
+
+        sprite.load('assets/kitty.json').then(function(sprite) {
+          console.log(sprite);
+          spriteAnimation = SpriteAnimation(sprite)
+            .play('run');
+
+          spriteLayer.addSprite(spriteAnimation);
+
+          Scheduler(function() {
+            spriteLayer.draw();
+          });
+        });
+      });
+    });
+
+    /*use(['Scheduler'], function(_Scheduler) {
+      Scheduler = _Scheduler;
+      foo = Scheduler.instance().schedule(function(deltaTime) {
+        console.log('abc');
+      });
+    });*/
+  </script>
 </body>
 </html>

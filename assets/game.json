@@ -1,0 +1,7 @@
+{
+  "id": "kitty-demo",
+  "description": "Kitty Demo",
+  "scenes": [
+    "kitty-world.json"
+  ]
+}

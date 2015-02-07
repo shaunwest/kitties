@@ -1,0 +1,15 @@
+{
+  "id": "kitty-world",
+  "description": "Kitty World File",
+  "sceneWidth": 600,
+  "sceneHeight": 600,
+  "sceneDepth": 0,
+  "layerDefinitions": {
+    "layer1": {
+      "backgroundUrl": "background.png",
+      "colliders": [
+        { "x": 0, "y": 500, "width": 600, "height": 100 }
+      ]
+    }
+  }
+}
