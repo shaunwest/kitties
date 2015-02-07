@@ -3,12 +3,11 @@
  * 
  */
 
-register('BackgroundLayer', ['Common'], function(Common) {
+register('BackgroundLayer', [], function() {
   'use strict';
 
-  return function(width, height) {
+  return function(canvas) {
     var background;
-    var canvas = Common.getCanvas(width, height);
     var context2d = canvas.getContext('2d'); 
 
     return {
@@ -28,6 +27,6 @@ register('BackgroundLayer', ['Common'], function(Common) {
       getLayer: function() {
         return canvas;
       }
-    }
+    };
   }
 });

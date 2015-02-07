@@ -1457,12 +1457,11 @@ if (!Array.prototype.map) {
  * 
  */
 
-register('BackgroundLayer', ['Common'], function(Common) {
+register('BackgroundLayer', [], function() {
   'use strict';
 
-  return function(width, height) {
+  return function(canvas) {
     var background;
-    var canvas = Common.getCanvas(width, height);
     var context2d = canvas.getContext('2d'); 
 
     return {
@@ -1482,7 +1481,7 @@ register('BackgroundLayer', ['Common'], function(Common) {
       getLayer: function() {
         return canvas;
       }
-    }
+    };
   }
 });
 register('CanvasViewport', [], function() {
@@ -1571,11 +1570,86 @@ register('Common', function() {
     return canvas;
   }
 
+  // Make the given RGB value transparent in the given image.
+  // Returns a new image.
+  function getTransparentImage(transRGB, image) {
+    var r, g, b, newImage, dataLength;
+    var width = image.width;
+    var height = image.height;
+    var imageData = image
+      .getContext('2d')
+      .getImageData(0, 0, width, height);
+
+    if(transRGB) {
+      dataLength = width * height * 4;
+
+      for(var index = 0; index < dataLength; index+=4) {
+        r = imageData.data[index];
+        g = imageData.data[index + 1];
+        b = imageData.data[index + 2];
+        if(r === transRGB[0] && g === transRGB[1] && b === transRGB[2]) {
+          imageData.data[index + 3] = 0;
+        }
+      }
+    } 
+
+    newImage = getCanvas(width, height);
+    newImage
+      .getContext('2d')
+      .putImageData(imageData, 0, 0);
+
+    return newImage;
+  }
+
   return {
     getBaseUrl: getBaseUrl,
     isFullUrl: isFullUrl,
-    getCanvas: getCanvas
+    getCanvas: getCanvas,
+    getTransparentImage: getTransparentImage
   };
+});
+/**
+ * Created by Shaun on 2/5/15
+ * 
+ */
+
+register('EntityLayer', [], function() {
+  'use strict';
+
+  return function(canvas) {
+    var entities = [];
+    var context2d = canvas.getContext('2d'); 
+
+    return {
+      addEntity: function(entity) {
+        entities.push(entity);
+        return this;
+      },
+      draw: function() {
+        var entity, image;
+
+        context2d.clearRect(0, 0, canvas.width, canvas.height);
+
+        for(var i = 0, numEntities = entities.length; i < numEntities; i++) {
+          entity = entities[i];
+
+          if(!entity.getImage) {
+            continue;
+          }
+
+          image = entity.getImage();
+          if(image) {
+            context2d.drawImage(image, entity.x || 0, entity.y || 0); 
+          }
+        }
+
+        return this;
+      },
+      getLayer: function() {
+        return canvas;
+      }
+    };
+  }
 });
 /**
  * Created by Shaun on 1/25/15
@@ -1670,27 +1744,33 @@ register('Scene',
    'Common',
    'Obj',
    'Func',
-   'ImageLayer'],
-function(Util, Http, Common, Obj, Func, ImageLayer) {
+   ],
+function(Util, Http, Common, Obj, Func) {
   'use strict';
 
-  function createLayer(layerDefinitions, baseUrl, layerId) {
-    var simpleLayer = Obj.clone(ImageLayer);
-    return simpleLayer.load(layerId, layerDefinitions[layerId], baseUrl);
-  }
+  // Should this be moved out of scene just like sprites?
+  /*function createLayer(layerDefinitions, baseUrl, layerId) {
+    //var simpleLayer = Obj.clone(ImageLayer);
+    //return simpleLayer.load(layerId, layerDefinitions[layerId], baseUrl);
+    var layerDefinition = layerDefinitions[layerId];
+    if(layerDefinition.backgroundUrl) {
+      ImageLoader(layerDefinition.backgroundUrl)
+        .then(setBackground, onGetBackgroundError);  
+    }
+  }*/
 
   function getScene(response) {
     return response.data;
   }
 
-  function getLayers(baseUrl, scene) {
+  /*function getLayers(baseUrl, scene) {
     var layerDefinitions = scene.layerDefinitions;
 
     var layerPromises = Object.keys(layerDefinitions)
       .map(Func.partial(createLayer, layerDefinitions, baseUrl));
 
     return Promise.all(layerPromises)
-      .then(function onGetLayers(layers) {
+      .then(function (layers) {
         scene.layers = layers.reduce(function(layers, layer) {
           layers[layer.id] = layer;
           return layers;
@@ -1698,35 +1778,28 @@ function(Util, Http, Common, Obj, Func, ImageLayer) {
 
         return scene;
       });
-  }
+  }*/
 
-  function onGetSceneError(response) {
-    Util.warn('Error loading scene at \'' + sceneUrl + '\'');
-  }
-
-  function load(sceneUrl) {
-    var currentScene = this;
+  return function(sceneUrl) {
     var baseUrl = Common.getBaseUrl(sceneUrl);
 
     return Http.get(sceneUrl)
-      .then(getScene, onGetSceneError)
-      .then(Func.partial(getLayers, baseUrl))
+      .then(getScene, function(response) {
+        Util.warn('Error loading scene at \'' + sceneUrl + '\''); 
+      })
+      //.then(Func.partial(getLayers, baseUrl))
       .then(function(scene) {
-        var scene = Obj.merge(scene, currentScene);
-
-        scene.url = sceneUrl;
-        scene.baseUrl = baseUrl;
-
-        return scene;
+        return Obj.merge(scene, {
+          sceneWidth: 500,
+          sceneHeight: 500,
+          sceneDepth: 500,
+          url: sceneUrl,
+          baseUrl: baseUrl
+        });
+      }, function() {
+        return null;        
       });
   }
-
-  return {
-    sceneWidth: 500,
-    sceneHeight: 500,
-    sceneDepth: 500,
-    load: load
-  };
 });
 /**
  * Created by Shaun on 2/1/15
@@ -1914,7 +1987,7 @@ register('Schedule', [], function() {
 register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
-  function SpriteAnimation(sprite) {
+  return function (sprite) {
     var currentFrameSet = null,
       currentFrameIndex = 0,
       currentFrame = null,
@@ -1942,7 +2015,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 
     return {
       play: function(frameSetId) {
-        currentFrameSet = sprite.frameSet[frameSetId];
+        currentFrameSet = sprite.frameSets[frameSetId];
         currentFrameIndex = 0;
         currentFrame = null;
         return this;
@@ -1962,86 +2035,11 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
       currentFrameIndex: function() {
         return currentFrameIndex;
       },
-      currentFrame: function() {
+      getImage: function() {
         return currentFrame;
       }
     };
   }
-
-  return SpriteAnimation;
-
-  /*function play(frameSetId) {
-    this.currentFrameSet = this.sprite.frameSet[frameSetId];
-    this.currentFrame = 0;
-
-    if(this.schedulerId) {
-      return;
-    }
-
-    this.schedulerId = scheduler.schedule(frame.bind(this));
-  }
-
-  function frame(deltaTime) {
-    if(this.currentFrame >= this.currentFrameSet.length) {
-      this.currentFrame = 0;
-    }
-
-
-  }
-
-  function kill() {
-
-  }
-
-  return {
-    sprite: null,
-    currentFrame: 0,
-    schedulerId: 0,
-    frameCallback: null,
-    target: target,
-    play: play
-  };*/
-});
-/**
- * Created by Shaun on 2/5/15
- * 
- */
-
-register('SpriteLayer', ['Common'], function(Common) {
-  'use strict';
-
-  function SpriteLayer(width, height) {
-    var sprites = [];
-    var canvas = Common.getCanvas(width, height);
-    var context2d = canvas.getContext('2d'); 
-
-    return {
-      addSprite: function(spriteAnimation) {
-        sprites.push(spriteAnimation);
-        return this;
-      },
-      draw: function() {
-        var spriteAnimation, currentFrame;
-
-        context2d.clearRect(0, 0, canvas.width, canvas.height);
-
-        for(var i = 0, numSprites = sprites.length; i < numSprites; i++) {
-          spriteAnimation = sprites[i];
-          currentFrame = spriteAnimation.currentFrame();
-          if(currentFrame) {
-            context2d.drawImage(currentFrame, 0, 0); 
-          }
-        }
-
-        return this;
-      },
-      getLayer: function() {
-        return canvas;
-      }
-    }
-  }
-
-  return SpriteLayer;
 });
 /**
  * Created by Shaun on 5/31/14.
@@ -2053,147 +2051,107 @@ register('Sprite', [
   'Http',
   'Merge',
   'ImageLoader',
-  'Common'
+  'Common',
+  'Func'
 ],
-function(Util, Http, Merge, ImageLoader, Common) {
+function(Util, Http, Merge, ImageLoader, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
 
-  // Main function. Gets sprite data and calls support functions to build frames.
-  function load(spriteUrl) {
-    var sprite = this;
-
-    // Re-work to better use Promises, like scene.js
-    function onGetSprite(response) {
-      Merge(response.data, sprite);
-
-      return getSpriteSheet(sprite.spriteSheetUrl, sprite.baseUrl)
-        .then(function(spriteSheet) {
-          return Object
-            .keys(sprite.frameSetDefinitions)
-            .reduce(compileFramesets.bind(undefined, spriteSheet, sprite), {});
-        });
-    }
-
-    function onGetSpriteError(response) {
-      Util.warn('Error loading sprite at \'' + spriteUrl + '\'');
-    }
-
-    sprite.url = spriteUrl;
-    sprite.baseUrl = Common.getBaseUrl(spriteUrl);
-
-    return new Promise(function(resolve) {
-      Http.get(spriteUrl)
-        .then(onGetSprite, onGetSpriteError)
-        .then(function(frameSet) {
-          sprite.frameSet = frameSet;
-          resolve(sprite);
-        });
+  function getSprite(response) {
+    var sprite = Merge(response.data, {
+      frameWidth: 48,
+      frameHeight: 48
     });
-  } 
 
-  // Build frame set and store it
-  function compileFramesets(spriteSheet, sprite, frameSets, frameSetId) {
-    var frameSet = getFrameSet(
-        sprite.frameSetDefinitions[frameSetId],
-        spriteSheet, 
-        sprite.frameWidth, 
-        sprite.frameHeight
-      );
-
-    frameSet.frames = frameSet.frames
-      .map(getTransparentImage.bind(undefined, sprite.transparentColor));
-
-    frameSets[frameSetId] = frameSet;
-    
-    return frameSets;
+    return sprite;
   }
 
   // Download a sprite sheet
-  function getSpriteSheet(spriteSheetUrl, baseUrl) {
-    function onGetSpriteSheet(spriteSheet) {
-      Util.log('Sprite sheet loaded!');
-      return spriteSheet;
+  function getSpriteSheet(baseUrl, sprite) {
+    if(!sprite.spriteSheetUrl) {
+      return null;
     }
 
-    function onGetSpriteSheetError() {
-      Util.warn('sprite sheet not found at ' + spriteSheetUrl);
+    if(!Common.isFullUrl(sprite.spriteSheetUrl)) {
+      sprite.spriteSheetUrl = baseUrl + '/' + sprite.spriteSheetUrl;
     }
 
-    if(!spriteSheetUrl) {
-      return;
-    }
-
-    if(!Common.isFullUrl(spriteSheetUrl)) {
-      spriteSheetUrl = baseUrl + '/' + spriteSheetUrl;
-    }
-
-    return ImageLoader(spriteSheetUrl)
-      .then(onGetSpriteSheet, onGetSpriteSheetError); 
+    return ImageLoader(sprite.spriteSheetUrl)
+      .then(function(spriteSheet) {
+        Util.log('Sprite sheet loaded!');
+        sprite.spriteSheet = spriteSheet;
+        return sprite;
+      }, function() {
+        Util.warn('sprite sheet not found at ' + sprite.spriteSheetUrl);
+      }); 
   }
 
-  // Make the given RGB value transparent in the given image.
-  // Returns a new image.
-  function getTransparentImage(transRGB, image) {
-    var r, g, b, index, newImage, dataLength;
-    var width = image.width;
-    var height = image.height;
-    var imageData = image
-      .getContext('2d')
-      .getImageData(0, 0, width, height);
+  function setFrameSets(sprite) {
+    if(!sprite) {
+      return null;
+    }
 
-    if(transRGB) {
-      dataLength = width * height * 4;
+    sprite.frameSets = Object
+      .keys(sprite.frameSetDefinitions)
+      .reduce(function(frameSets, frameSetId) {
+        var frameSet = buildFrameSet(sprite.frameSetDefinitions[frameSetId], sprite);
 
-      for(index = 0; index < dataLength; index+=4) {
-        r = imageData.data[index];
-        g = imageData.data[index + 1];
-        b = imageData.data[index + 2];
-        if(r === transRGB[0] && g === transRGB[1] && b === transRGB[2]) {
-          imageData.data[index + 3] = 0;
-        }
-      }
-    } 
+        frameSet.frames = frameSet.frames
+          .map(Func.partial(Common.getTransparentImage, sprite.transparentColor));
 
-    newImage = document.createElement('canvas');
-    newImage.width  = width;
-    newImage.height = height;
-    newImage.getContext('2d').putImageData(imageData, 0, 0);
+        frameSets[frameSetId] = frameSet;
 
-    return newImage;
+        return frameSets;
+      }, {});
+
+    return sprite;
   }
 
   // Returns a sequence of frame images given a frame set definition and a sprite sheet
-  function getFrameSet(frameSetDefinition, spriteSheet, frameWidth, frameHeight) {
-    var frames = frameSetDefinition.frames.map(function(frameDefinition) {
-      var frame = document.createElement('canvas');
-
-      frame.width  = frameWidth;
-      frame.height = frameHeight;
-
-      frame
-        .getContext('2d')
-        .drawImage(
-          spriteSheet,
-          frameDefinition.x, frameDefinition.y,
-          frameWidth, frameHeight,
-          0, 0,
-          frameWidth, frameHeight
-        );
-
-      return frame;
-    });
+  function buildFrameSet(frameSetDefinition, sprite) {
+    var frameWidth = sprite.frameWidth;
+    var frameHeight = sprite.frameHeight;
 
     return {
       rate: frameSetDefinition.rate || DEFAULT_RATE,
-      frames: frames
+      frames: frameSetDefinition.frames
+        .map(function(frameDefinition) {
+          var frame = Common.getCanvas(frameWidth, frameHeight);
+
+          frame
+            .getContext('2d')
+            .drawImage(
+              sprite.spriteSheet,
+              frameDefinition.x, frameDefinition.y,
+              frameWidth, frameHeight,
+              0, 0,
+              frameWidth, frameHeight
+            );
+
+          return frame;
+        })
     };
   }
-  
-  return {
-    frameWidth: 48,
-    frameHeight: 48,
-    load: load 
-  };
+
+  // Main function. Gets sprite data and calls support functions to build frames.
+  return function (spriteUrl) {
+    var baseUrl = Common.getBaseUrl(spriteUrl);
+
+    return Http.get(spriteUrl)
+      .then(getSprite, function(response) {
+        Util.warn('Error loading sprite at \'' + spriteUrl + '\'');
+      })
+      .then(Func.partial(getSpriteSheet, baseUrl))
+      .then(setFrameSets)
+      .then(function(sprite) {
+        if(sprite) {
+          sprite.url = spriteUrl;
+        }
+        return sprite;
+      }, function() {
+        return null;
+      });
+  }; 
 });

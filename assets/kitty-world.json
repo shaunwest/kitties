@@ -5,11 +5,18 @@
   "sceneHeight": 600,
   "sceneDepth": 0,
   "layerDefinitions": {
-    "layer1": {
-      "backgroundUrl": "background.png",
+    "background": {
+      "backgroundUrl": "background.png"
+    },
+    "collisions": {
       "colliders": [
         { "x": 0, "y": 500, "width": 600, "height": 100 }
       ]
+    },
+    "entities": {
+      "sprites": {
+        "kitty": "assets/kitty.json"
+      }
     }
   }
 }
