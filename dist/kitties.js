@@ -1453,6 +1453,37 @@ if (!Array.prototype.map) {
   };
 })();
 /**
+ * Created by Shaun on 1/25/15
+ *
+ */
+
+register('BackgroundImage', [
+  'Util',
+  'ImageLoader',
+  'Common'
+],
+function(Util, ImageLoader, Common) {
+  'use strict';
+
+  return function(imageUrl, baseUrl) {
+    if(!imageUrl) {
+      return;
+    }
+
+    if(baseUrl && !Common.isFullUrl(imageUrl)) {
+      imageUrl = baseUrl + '/' + imageUrl;
+    }
+
+    return ImageLoader(imageUrl)
+      .then(function(image) {
+        return image;
+      }, function() {
+        Util.warn('Error loading background at \'' + imageUrl + '\'');
+        return null;
+      });  
+  };
+});
+/**
  * Created by Shaun on 2/5/15
  * 
  */
@@ -1469,11 +1500,21 @@ register('BackgroundLayer', [], function() {
         background = image;
         return this;
       },
-      draw: function() {
+      draw: function(viewport) {
+        if(!viewport) {
+          return;
+        }
+        
         context2d.clearRect(0, 0, canvas.width, canvas.height);
         
         if(background) {
-          context2d.drawImage(background, 0, 0); 
+          context2d.drawImage(
+            background, 
+            viewport.x, viewport.y, 
+            viewport.width, viewport.height, 
+            0, 0, 
+            viewport.width, viewport.height
+          ); 
         }
 
         return this;
@@ -1546,6 +1587,36 @@ register('CanvasViewport', [], function() {
 });
 
 
+/**
+ * Created by Shaun on 2/28/15
+ * 
+ */
+
+register('CollisionLayer', [], function() {
+  'use strict';
+
+  return function(canvas) {
+    var colliders = [];
+    var context2d = canvas.getContext('2d'); 
+
+    return {
+      setColliders: function(value) {
+        colliders = value;
+      },
+      draw: function(viewport) {
+        context2d.clearRect(0, 0, canvas.width, canvas.height);
+        context2d.strokeStyle = '#ff00ff';
+        colliders.forEach(function(collider) {
+          context2d.strokeRect(collider.x, collider.y, collider.width, collider.height);
+        }); 
+        return this;
+      },
+      getLayer: function() {
+        return canvas;
+      }
+    };
+  }
+});
 register('Common', function() {
   'use strict';
 
@@ -1616,6 +1687,15 @@ register('Common', function() {
 register('EntityLayer', [], function() {
   'use strict';
 
+  function intersects(rectA, rectB) {
+    return !(
+      rectA.x + rectA.width < rectB.x ||
+      rectA.y + rectA.height < rectB.y ||
+      rectA.x > rectB.x + rectB.width ||
+      rectA.y > rectB.y + rectB.height
+    );
+  }
+
   return function(canvas) {
     var entities = [];
     var context2d = canvas.getContext('2d'); 
@@ -1625,7 +1705,7 @@ register('EntityLayer', [], function() {
         entities.push(entity);
         return this;
       },
-      draw: function() {
+      draw: function(viewport) {
         var entity, image;
 
         context2d.clearRect(0, 0, canvas.width, canvas.height);
@@ -1635,6 +1715,10 @@ register('EntityLayer', [], function() {
 
           if(!entity.getImage) {
             continue;
+          }
+
+          if(!intersects(entity, viewport)) {
+            continue;            
           }
 
           image = entity.getImage();
@@ -1650,50 +1734,6 @@ register('EntityLayer', [], function() {
       }
     };
   }
-});
-/**
- * Created by Shaun on 1/25/15
- *
- */
-
-register('ImageLayer', [
-  'Util',
-  'ImageLoader',
-  'Common'
-],
-function(Util, ImageLoader, Common) {
-  'use strict';
-
-  function load(layerId, layerDefinition, baseUrl) {
-    var layer = this;
-    var backgroundUrl = layerDefinition.backgroundUrl;
-
-    function setBackground(background) {
-      layer.background = background;
-      return layer;
-    }
-
-    function onGetBackgroundError() {
-      Util.warn('Error loading background at \'' + backgroundUrl + '\'');
-    }
-
-    if(!backgroundUrl) {
-      return;
-    }
-
-    if(!Common.isFullUrl(backgroundUrl)) {
-      backgroundUrl = baseUrl + '/' + backgroundUrl;
-    }
-
-    layer.id = layerId;
-
-    return ImageLoader(backgroundUrl)
-      .then(setBackground, onGetBackgroundError);  
-  }
-
-  return {
-    load: load
-  };
 });
 /**
  * Created by Shaun on 5/1/14.
@@ -1748,37 +1788,9 @@ register('Scene',
 function(Util, Http, Common, Obj, Func) {
   'use strict';
 
-  // Should this be moved out of scene just like sprites?
-  /*function createLayer(layerDefinitions, baseUrl, layerId) {
-    //var simpleLayer = Obj.clone(ImageLayer);
-    //return simpleLayer.load(layerId, layerDefinitions[layerId], baseUrl);
-    var layerDefinition = layerDefinitions[layerId];
-    if(layerDefinition.backgroundUrl) {
-      ImageLoader(layerDefinition.backgroundUrl)
-        .then(setBackground, onGetBackgroundError);  
-    }
-  }*/
-
   function getScene(response) {
     return response.data;
   }
-
-  /*function getLayers(baseUrl, scene) {
-    var layerDefinitions = scene.layerDefinitions;
-
-    var layerPromises = Object.keys(layerDefinitions)
-      .map(Func.partial(createLayer, layerDefinitions, baseUrl));
-
-    return Promise.all(layerPromises)
-      .then(function (layers) {
-        scene.layers = layers.reduce(function(layers, layer) {
-          layers[layer.id] = layer;
-          return layers;
-        }, {});
-
-        return scene;
-      });
-  }*/
 
   return function(sceneUrl) {
     var baseUrl = Common.getBaseUrl(sceneUrl);
@@ -1787,7 +1799,6 @@ function(Util, Http, Common, Obj, Func) {
       .then(getScene, function(response) {
         Util.warn('Error loading scene at \'' + sceneUrl + '\''); 
       })
-      //.then(Func.partial(getLayers, baseUrl))
       .then(function(scene) {
         return Obj.merge(scene, {
           sceneWidth: 500,
@@ -1943,47 +1954,6 @@ register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
 
   return Scheduler;
 });
-
-
-register('Schedule', [], function() {
-  'use strict';
-
-  function Schedule(cb) {
-    var actualFps = 0,
-      ticks = 0,
-      elapsedSeconds = 0,
-      running = true;
-    var lastUpdateTime = new Date();
-    var oneSecondTimerId = window.setInterval(onOneSecond.bind(this), ONE_SECOND);
-
-    function makeFrame() {
-      var count = 1;
-      var deltaTime = 0;
-      return function(_deltaTime) {
-        deltaTime += _deltaTime;
-        if(count !== rate) {
-          count++;
-          return;
-        }
-        cb(deltaTime);
-        count = 1;
-        deltaTime = 0;
-      };
-    }
-
-    if(!Util.isFunction(cb)) {
-      Util.error('Scheduler: only functions can be scheduled.');
-    }
-    rate = rate || 1;
-
-    this.scheduled.push(makeFrame());
-
-    return this.scheduled.length;
-
-  }
-
-  return Schedule;    
-});
 register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
@@ -2088,6 +2058,7 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       }); 
   }
 
+  // FIXME: this should only happen once per sprite type...
   function setFrameSets(sprite) {
     if(!sprite) {
       return null;
@@ -2136,8 +2107,10 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
   }
 
   // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteUrl) {
-    var baseUrl = Common.getBaseUrl(spriteUrl);
+  return function (spriteUrl, baseUrl) {
+    if(baseUrl && !Common.isFullUrl(spriteUrl)) {
+      spriteUrl = baseUrl + '/' + spriteUrl;
+    }
 
     return Http.get(spriteUrl)
       .then(getSprite, function(response) {

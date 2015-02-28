@@ -6,6 +6,15 @@
 register('EntityLayer', [], function() {
   'use strict';
 
+  function intersects(rectA, rectB) {
+    return !(
+      rectA.x + rectA.width < rectB.x ||
+      rectA.y + rectA.height < rectB.y ||
+      rectA.x > rectB.x + rectB.width ||
+      rectA.y > rectB.y + rectB.height
+    );
+  }
+
   return function(canvas) {
     var entities = [];
     var context2d = canvas.getContext('2d'); 
@@ -15,7 +24,7 @@ register('EntityLayer', [], function() {
         entities.push(entity);
         return this;
       },
-      draw: function() {
+      draw: function(viewport) {
         var entity, image;
 
         context2d.clearRect(0, 0, canvas.width, canvas.height);
@@ -25,6 +34,10 @@ register('EntityLayer', [], function() {
 
           if(!entity.getImage) {
             continue;
+          }
+
+          if(!intersects(entity, viewport)) {
+            continue;            
           }
 
           image = entity.getImage();

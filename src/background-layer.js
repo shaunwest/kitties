@@ -15,11 +15,21 @@ register('BackgroundLayer', [], function() {
         background = image;
         return this;
       },
-      draw: function() {
+      draw: function(viewport) {
+        if(!viewport) {
+          return;
+        }
+        
         context2d.clearRect(0, 0, canvas.width, canvas.height);
         
         if(background) {
-          context2d.drawImage(background, 0, 0); 
+          context2d.drawImage(
+            background, 
+            viewport.x, viewport.y, 
+            viewport.width, viewport.height, 
+            0, 0, 
+            viewport.width, viewport.height
+          ); 
         }
 
         return this;

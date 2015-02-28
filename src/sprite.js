@@ -45,6 +45,7 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       }); 
   }
 
+  // FIXME: this should only happen once per sprite type...
   function setFrameSets(sprite) {
     if(!sprite) {
       return null;
@@ -93,8 +94,10 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
   }
 
   // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteUrl) {
-    var baseUrl = Common.getBaseUrl(spriteUrl);
+  return function (spriteUrl, baseUrl) {
+    if(baseUrl && !Common.isFullUrl(spriteUrl)) {
+      spriteUrl = baseUrl + '/' + spriteUrl;
+    }
 
     return Http.get(spriteUrl)
       .then(getSprite, function(response) {

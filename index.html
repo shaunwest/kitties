@@ -4,21 +4,18 @@
   <meta charset="UTF-8">
   <title>Kitties Demo</title>
   <style>
-    .viewport { width: 600px; height: 600px; }
+    .viewport { width: 600px; height: 400px; }
     .layer { position: absolute; }
   </style>
 </head>
 <body>
   <div class="viewport">
-    <canvas data-canvas-background class="layer" width="600" height="600"></canvas>
-    <canvas data-canvas-entities class="layer" width="600" height="600"></canvas>
+    <canvas data-canvas-background class="layer" width="600" height="400"></canvas>
+    <canvas data-canvas-entities class="layer" width="600" height="400"></canvas>
+    <canvas data-canvas-colliders class="layer" width="600" height="400"></canvas>
   </div>
   <script src="dist/kitties.js"></script>
   <script>
-    var Scheduler;
-    var spriteAnimation;
-    var foo;
-
     use(['Obj', 'Injector'], function(Obj, Injector) {
       Injector.addInterceptor(/clone (.*)/, function(module) {
         return Obj.clone(module);
@@ -26,61 +23,80 @@
     });
 
     use([
+      'Util',
       'Sprite', 
       'Scene',
       'SpriteAnimation',
       'EntityLayer',
       'BackgroundLayer',
+      'CollisionLayer',
       'Scheduler', 
       'ImageLoader',
-      'Common',
+      'BackgroundImage',
       'canvas-background',
-      'canvas-entities'],
-    function(Sprite, Scene, SpriteAnimation, EntityLayer, BackgroundLayer, Scheduler, ImageLoader, Common, canvasBackground, canvasEntities) {
+      'canvas-entities',
+      'canvas-colliders',
+      ],
+    function(Util, Sprite, Scene, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, BackgroundImage, canvasBackground, canvasEntities, canvasColliders) {
       'use strict';
 
+      function makeLayers(layerDefinitions, actions) {
+        Object.keys(layerDefinitions).forEach(function(actionName) {
+          var action = actions[actionName];
+          if(Util.isFunction(action)) {
+            action(layerDefinitions[actionName]);
+          }
+        });
+      }
+
+      var viewport = {
+        x: 0,
+        y: 0,
+        width: 600,
+        height: 400
+      };       
+
+      // Setup background layer
       var backgroundLayer = BackgroundLayer(canvasBackground);
+      Scheduler(function() {
+        backgroundLayer.draw(viewport);
+      });
+
+      // Setup entity layer
       var entityLayer = EntityLayer(canvasEntities);
+      Scheduler(function() {
+        entityLayer.draw(viewport);
+      });
 
-      Scene('assets/kitty-world.json').then(function(scene) {
-        console.log(scene);
+      var collisionLayer = CollisionLayer(canvasColliders);
 
-        var layerDefinitions = scene.layerDefinitions;
-
-        Object.keys(layerDefinitions)
-          .map(function(layerId) {
-            var backgroundUrl;
-            var layerDefinition = layerDefinitions[layerId];
-
-            if(layerDefinition.backgroundUrl) {
-              backgroundUrl = (!Common.isFullUrl(layerDefinition.backgroundUrl)) ?
-                scene.baseUrl + '/' + layerDefinition.backgroundUrl : layerDefinition.backgroundUrl;
-
-              ImageLoader(backgroundUrl)
+      // Get scene
+      Scene('assets/kitty-world.json')
+        .then(function(scene) {
+          makeLayers(scene.layerDefinitions, {
+            background: function (data) {
+              BackgroundImage(data.backgroundUrl, scene.baseUrl)
                 .then(function(image) {
                   backgroundLayer.setBackground(image);
-                  Scheduler(function() {
-                    backgroundLayer.draw();
+                });
+            },
+            entities: function (data) {
+              var sprites = data.sprites;
+
+              sprites.forEach(function(sprite) {
+                Sprite(sprite.src, scene.baseUrl)
+                  .then(function(sprite) {
+                    if(!sprite) {
+                      return;
+                    }
+                    sprite.spriteAnimation = SpriteAnimation(sprite).play('run');
+                    entityLayer.addEntity(sprite.spriteAnimation);
                   });
-                });
-            }
-
-            if(layerDefinition.sprites) {
-              Object.keys(layerDefinition.sprites).forEach(function(spriteId) {
-                Sprite('assets/kitty.json').then(function(sprite) {
-                  if(!sprite) {
-                    return;
-                  }
-                  console.log(sprite);
-                  spriteAnimation = SpriteAnimation(sprite).play('run');
-
-                  entityLayer.addEntity(spriteAnimation);
-                });
-              });                
-
-              Scheduler(function() {
-                entityLayer.draw();
               });
+            },
+            collisions: function(data) {
+              collisionLayer.setColliders(data.colliders);
+              collisionLayer.draw();
             }
           });
       });
