@@ -2016,7 +2016,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
  *
  */
 
-register('Sprite', [
+register('SpriteDefinition', [
   'Util',
   'Http',
   'Merge',
@@ -2028,62 +2028,66 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
+  var cache = {}; // maybe make this an injectable object
 
-  function getSprite(response) {
-    var sprite = Merge(response.data, {
+  function getSpriteDefinition(response) {
+    var spriteDefinition = Merge(response.data, {
       frameWidth: 48,
       frameHeight: 48
     });
 
-    return sprite;
+    return spriteDefinition;
   }
 
-  // Download a sprite sheet
-  function getSpriteSheet(baseUrl, sprite) {
-    if(!sprite.spriteSheetUrl) {
+  // Download a spriteDefinition sheet
+  function getSpriteSheet(baseUrl, spriteDefinition) {
+    if(!spriteDefinition.spriteSheetUrl) {
       return null;
     }
 
-    if(!Common.isFullUrl(sprite.spriteSheetUrl)) {
-      sprite.spriteSheetUrl = baseUrl + '/' + sprite.spriteSheetUrl;
+    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
+      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
     }
 
-    return ImageLoader(sprite.spriteSheetUrl)
+    return ImageLoader(spriteDefinition.spriteSheetUrl)
       .then(function(spriteSheet) {
         Util.log('Sprite sheet loaded!');
-        sprite.spriteSheet = spriteSheet;
-        return sprite;
+        spriteDefinition.spriteSheet = spriteSheet;
+        return spriteDefinition;
       }, function() {
-        Util.warn('sprite sheet not found at ' + sprite.spriteSheetUrl);
+        Util.warn('sprite sheet not found at ' + spriteDefinition.spriteSheetUrl);
       }); 
   }
 
   // FIXME: this should only happen once per sprite type...
-  function setFrameSets(sprite) {
-    if(!sprite) {
+  function setFrameSets(spriteDefinition) {
+    if(!spriteDefinition) {
       return null;
     }
 
-    sprite.frameSets = Object
-      .keys(sprite.frameSetDefinitions)
+    spriteDefinition.frameSets = Object
+      .keys(spriteDefinition.frameSetDefinitions)
       .reduce(function(frameSets, frameSetId) {
-        var frameSet = buildFrameSet(sprite.frameSetDefinitions[frameSetId], sprite);
+        var frameSet = buildFrameSet(
+          spriteDefinition.frameSetDefinitions[frameSetId], 
+          spriteDefinition
+        );
 
         frameSet.frames = frameSet.frames
-          .map(Func.partial(Common.getTransparentImage, sprite.transparentColor));
+          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
 
         frameSets[frameSetId] = frameSet;
 
         return frameSets;
       }, {});
 
-    return sprite;
+    return spriteDefinition;
   }
 
   // Returns a sequence of frame images given a frame set definition and a sprite sheet
-  function buildFrameSet(frameSetDefinition, sprite) {
-    var frameWidth = sprite.frameWidth;
-    var frameHeight = sprite.frameHeight;
+  function buildFrameSet(frameSetDefinition, spriteDefinition) {
+    var frameWidth = spriteDefinition.frameWidth;
+    var frameHeight = spriteDefinition.frameHeight;
 
     return {
       rate: frameSetDefinition.rate || DEFAULT_RATE,
@@ -2094,7 +2098,7 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
           frame
             .getContext('2d')
             .drawImage(
-              sprite.spriteSheet,
+              spriteDefinition.spriteSheet,
               frameDefinition.x, frameDefinition.y,
               frameWidth, frameHeight,
               0, 0,
@@ -2107,22 +2111,29 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
   }
 
   // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteUrl, baseUrl) {
-    if(baseUrl && !Common.isFullUrl(spriteUrl)) {
-      spriteUrl = baseUrl + '/' + spriteUrl;
+  return function (spriteDefinitionUrl, baseUrl) {
+    var fullSpriteDefinitionUrl;
+
+    if(cache[spriteDefinitionUrl]) {
+      return cache[spriteDefinitionUrl];
     }
 
-    return Http.get(spriteUrl)
-      .then(getSprite, function(response) {
-        Util.warn('Error loading sprite at \'' + spriteUrl + '\'');
+    if(baseUrl && !Common.isFullUrl(spriteDefinitionUrl)) {
+      fullSpriteDefinitionUrl = baseUrl + '/' + spriteDefinitionUrl;
+    }
+
+    return Http.get(fullSpriteDefinitionUrl)
+      .then(getSpriteDefinition, function(response) {
+        Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
       })
       .then(Func.partial(getSpriteSheet, baseUrl))
       .then(setFrameSets)
-      .then(function(sprite) {
-        if(sprite) {
-          sprite.url = spriteUrl;
+      .then(function(spriteDefinition) {
+        if(spriteDefinition) {
+          spriteDefinition.url = fullSpriteDefinitionUrl;
         }
-        return sprite;
+        cache[spriteDefinitionUrl] = spriteDefinition;
+        return spriteDefinition;
       }, function() {
         return null;
       });
