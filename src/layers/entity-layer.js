@@ -3,17 +3,8 @@
  * 
  */
 
-register('EntityLayer', [], function() {
+register('EntityLayer', ['Common'], function(Common) {
   'use strict';
-
-  function intersects(rectA, rectB) {
-    return !(
-      rectA.x + rectA.width < rectB.x ||
-      rectA.y + rectA.height < rectB.y ||
-      rectA.x > rectB.x + rectB.width ||
-      rectA.y > rectB.y + rectB.height
-    );
-  }
 
   return function(canvas) {
     var entities = [];
@@ -32,17 +23,21 @@ register('EntityLayer', [], function() {
         for(var i = 0, numEntities = entities.length; i < numEntities; i++) {
           entity = entities[i];
 
-          if(!entity.getImage) {
+          if(!entity.animation) {
             continue;
           }
 
-          if(!intersects(entity, viewport)) {
+          if(!Common.intersects(entity, viewport)) {
             continue;            
           }
 
-          image = entity.getImage();
+          image = entity.animation.getImage();
           if(image) {
-            context2d.drawImage(image, entity.x || 0, entity.y || 0); 
+            context2d.drawImage(
+              image, 
+              entity.x - viewport.x || 0, 
+              entity.y - viewport.y || 0
+            ); 
           }
         }
 

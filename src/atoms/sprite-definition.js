@@ -7,15 +7,15 @@ register('SpriteDefinition', [
   'Util',
   'Http',
   'Merge',
-  'ImageLoader',
+  'SpriteSheet',
   'Common',
   'Func'
 ],
-function(Util, Http, Merge, ImageLoader, Common, Func) {
+function(Util, Http, Merge, SpriteSheet, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
-  var cache = {}; // maybe make this an injectable object
+  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
 
   function getSpriteDefinition(response) {
     var spriteDefinition = Merge(response.data, {
@@ -36,17 +36,13 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
     }
 
-    return ImageLoader(spriteDefinition.spriteSheetUrl)
+    return SpriteSheet(spriteDefinition.spriteSheetUrl)
       .then(function(spriteSheet) {
-        Util.log('Sprite sheet loaded!');
         spriteDefinition.spriteSheet = spriteSheet;
         return spriteDefinition;
-      }, function() {
-        Util.warn('sprite sheet not found at ' + spriteDefinition.spriteSheetUrl);
-      }); 
+      });
   }
 
-  // FIXME: this should only happen once per sprite type...
   function setFrameSets(spriteDefinition) {
     if(!spriteDefinition) {
       return null;
@@ -105,9 +101,7 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       return cache[spriteDefinitionUrl];
     }
 
-    if(baseUrl && !Common.isFullUrl(spriteDefinitionUrl)) {
-      fullSpriteDefinitionUrl = baseUrl + '/' + spriteDefinitionUrl;
-    }
+    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
 
     return Http.get(fullSpriteDefinitionUrl)
       .then(getSpriteDefinition, function(response) {

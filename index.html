@@ -4,24 +4,18 @@
   <meta charset="UTF-8">
   <title>Kitties Demo</title>
   <style>
-    .viewport { width: 600px; height: 400px; }
+    .stage { width: 600px; height: 400px; background-color: #969696; }
     .layer { position: absolute; }
   </style>
 </head>
 <body>
-  <div class="viewport">
+  <div class="stage">
     <canvas data-canvas-background class="layer" width="600" height="400"></canvas>
     <canvas data-canvas-entities class="layer" width="600" height="400"></canvas>
     <canvas data-canvas-colliders class="layer" width="600" height="400"></canvas>
   </div>
   <script src="dist/kitties.js"></script>
   <script>
-    use(['Obj', 'Injector'], function(Obj, Injector) {
-      Injector.addInterceptor(/clone (.*)/, function(module) {
-        return Obj.clone(module);
-      });
-    });
-
     use([
       'Util',
       'Sprite', 
@@ -33,11 +27,12 @@
       'Scheduler', 
       'ImageLoader',
       'BackgroundImage',
+      'Common',
       'canvas-background',
       'canvas-entities',
       'canvas-colliders',
       ],
-    function(Util, Sprite, Scene, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, BackgroundImage, canvasBackground, canvasEntities, canvasColliders) {
+    function(Util, Sprite, Scene, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, BackgroundImage, Common, canvasBackground, canvasEntities, canvasColliders) {
       'use strict';
 
       function makeLayers(layerDefinitions, actions) {
@@ -56,6 +51,8 @@
         height: 400
       };       
 
+      var entities = [];
+
       // Setup background layer
       var backgroundLayer = BackgroundLayer(canvasBackground);
       Scheduler(function() {
@@ -68,35 +65,39 @@
         entityLayer.draw(viewport);
       });
 
+      // Setup collision debug layer
       var collisionLayer = CollisionLayer(canvasColliders);
+      Scheduler(function() {
+        collisionLayer.draw(viewport);
+      });
 
       // Get scene
       Scene('assets/kitty-world.json')
         .then(function(scene) {
-          makeLayers(scene.layerDefinitions, {
+          makeLayers(scene.layerDefinitions, { 
             background: function (data) {
-              BackgroundImage(data.backgroundUrl, scene.baseUrl)
+              var fullUrl = Common.normalizeUrl(data.backgroundUrl, scene.baseUrl);
+              BackgroundImage(fullUrl)
                 .then(function(image) {
                   backgroundLayer.setBackground(image);
                 });
             },
             entities: function (data) {
-              var sprites = data.sprites;
-
-              sprites.forEach(function(sprite) {
-                Sprite(sprite.src, scene.baseUrl)
+              data.sprites.forEach(function(spriteData) {
+                Sprite(spriteData, scene.baseUrl)
                   .then(function(sprite) {
-                    if(!sprite) {
-                      return;
-                    }
-                    sprite.spriteAnimation = SpriteAnimation(sprite).play('run');
-                    entityLayer.addEntity(sprite.spriteAnimation);
+                    sprite.animation = SpriteAnimation(sprite.definition)
+                      .play('run');
+
+                    entityLayer.addEntity(sprite);
+                    entities.push(sprite);
                   });
               });
+
+              collisionLayer.setEntities(entities);
             },
             collisions: function(data) {
               collisionLayer.setColliders(data.colliders);
-              collisionLayer.draw();
             }
           });
       });

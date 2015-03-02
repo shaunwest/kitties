@@ -13,6 +13,13 @@ register('Common', function() {
       url.substring(0, 8) === 'https://');
   }
 
+  function normalizeUrl(url, baseUrl) {
+    if(baseUrl && !isFullUrl(url)) {
+      return baseUrl + '/' + url;
+    }
+    return url;
+  }
+
   function getCanvas(width, height) {
     var canvas = document.createElement('canvas');
 
@@ -20,6 +27,15 @@ register('Common', function() {
     canvas.height = height || 500;
 
     return canvas;
+  }
+
+  function intersects(rectA, rectB) {
+    return !(
+      rectA.x + rectA.width < rectB.x ||
+      rectA.y + rectA.height < rectB.y ||
+      rectA.x > rectB.x + rectB.width ||
+      rectA.y > rectB.y + rectB.height
+    );
   }
 
   // Make the given RGB value transparent in the given image.
@@ -57,6 +73,8 @@ register('Common', function() {
     getBaseUrl: getBaseUrl,
     isFullUrl: isFullUrl,
     getCanvas: getCanvas,
-    getTransparentImage: getTransparentImage
+    getTransparentImage: getTransparentImage,
+    intersects: intersects,
+    normalizeUrl: normalizeUrl
   };
 });

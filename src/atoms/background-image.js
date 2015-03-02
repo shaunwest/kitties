@@ -5,19 +5,14 @@
 
 register('BackgroundImage', [
   'Util',
-  'ImageLoader',
-  'Common'
+  'ImageLoader'
 ],
-function(Util, ImageLoader, Common) {
+function(Util, ImageLoader) {
   'use strict';
 
-  return function(imageUrl, baseUrl) {
+  return function(imageUrl) {
     if(!imageUrl) {
       return;
-    }
-
-    if(baseUrl && !Common.isFullUrl(imageUrl)) {
-      imageUrl = baseUrl + '/' + imageUrl;
     }
 
     return ImageLoader(imageUrl)

@@ -1452,79 +1452,6 @@ if (!Array.prototype.map) {
     });
   };
 })();
-/**
- * Created by Shaun on 1/25/15
- *
- */
-
-register('BackgroundImage', [
-  'Util',
-  'ImageLoader',
-  'Common'
-],
-function(Util, ImageLoader, Common) {
-  'use strict';
-
-  return function(imageUrl, baseUrl) {
-    if(!imageUrl) {
-      return;
-    }
-
-    if(baseUrl && !Common.isFullUrl(imageUrl)) {
-      imageUrl = baseUrl + '/' + imageUrl;
-    }
-
-    return ImageLoader(imageUrl)
-      .then(function(image) {
-        return image;
-      }, function() {
-        Util.warn('Error loading background at \'' + imageUrl + '\'');
-        return null;
-      });  
-  };
-});
-/**
- * Created by Shaun on 2/5/15
- * 
- */
-
-register('BackgroundLayer', [], function() {
-  'use strict';
-
-  return function(canvas) {
-    var background;
-    var context2d = canvas.getContext('2d'); 
-
-    return {
-      setBackground: function(image) {
-        background = image;
-        return this;
-      },
-      draw: function(viewport) {
-        if(!viewport) {
-          return;
-        }
-        
-        context2d.clearRect(0, 0, canvas.width, canvas.height);
-        
-        if(background) {
-          context2d.drawImage(
-            background, 
-            viewport.x, viewport.y, 
-            viewport.width, viewport.height, 
-            0, 0, 
-            viewport.width, viewport.height
-          ); 
-        }
-
-        return this;
-      },
-      getLayer: function() {
-        return canvas;
-      }
-    };
-  }
-});
 register('CanvasViewport', [], function() {
   'use strict';
 
@@ -1587,36 +1514,6 @@ register('CanvasViewport', [], function() {
 });
 
 
-/**
- * Created by Shaun on 2/28/15
- * 
- */
-
-register('CollisionLayer', [], function() {
-  'use strict';
-
-  return function(canvas) {
-    var colliders = [];
-    var context2d = canvas.getContext('2d'); 
-
-    return {
-      setColliders: function(value) {
-        colliders = value;
-      },
-      draw: function(viewport) {
-        context2d.clearRect(0, 0, canvas.width, canvas.height);
-        context2d.strokeStyle = '#ff00ff';
-        colliders.forEach(function(collider) {
-          context2d.strokeRect(collider.x, collider.y, collider.width, collider.height);
-        }); 
-        return this;
-      },
-      getLayer: function() {
-        return canvas;
-      }
-    };
-  }
-});
 register('Common', function() {
   'use strict';
 
@@ -1632,6 +1529,13 @@ register('Common', function() {
       url.substring(0, 8) === 'https://');
   }
 
+  function normalizeUrl(url, baseUrl) {
+    if(baseUrl && !isFullUrl(url)) {
+      return baseUrl + '/' + url;
+    }
+    return url;
+  }
+
   function getCanvas(width, height) {
     var canvas = document.createElement('canvas');
 
@@ -1639,6 +1543,15 @@ register('Common', function() {
     canvas.height = height || 500;
 
     return canvas;
+  }
+
+  function intersects(rectA, rectB) {
+    return !(
+      rectA.x + rectA.width < rectB.x ||
+      rectA.y + rectA.height < rectB.y ||
+      rectA.x > rectB.x + rectB.width ||
+      rectA.y > rectB.y + rectB.height
+    );
   }
 
   // Make the given RGB value transparent in the given image.
@@ -1676,64 +1589,10 @@ register('Common', function() {
     getBaseUrl: getBaseUrl,
     isFullUrl: isFullUrl,
     getCanvas: getCanvas,
-    getTransparentImage: getTransparentImage
+    getTransparentImage: getTransparentImage,
+    intersects: intersects,
+    normalizeUrl: normalizeUrl
   };
-});
-/**
- * Created by Shaun on 2/5/15
- * 
- */
-
-register('EntityLayer', [], function() {
-  'use strict';
-
-  function intersects(rectA, rectB) {
-    return !(
-      rectA.x + rectA.width < rectB.x ||
-      rectA.y + rectA.height < rectB.y ||
-      rectA.x > rectB.x + rectB.width ||
-      rectA.y > rectB.y + rectB.height
-    );
-  }
-
-  return function(canvas) {
-    var entities = [];
-    var context2d = canvas.getContext('2d'); 
-
-    return {
-      addEntity: function(entity) {
-        entities.push(entity);
-        return this;
-      },
-      draw: function(viewport) {
-        var entity, image;
-
-        context2d.clearRect(0, 0, canvas.width, canvas.height);
-
-        for(var i = 0, numEntities = entities.length; i < numEntities; i++) {
-          entity = entities[i];
-
-          if(!entity.getImage) {
-            continue;
-          }
-
-          if(!intersects(entity, viewport)) {
-            continue;            
-          }
-
-          image = entity.getImage();
-          if(image) {
-            context2d.drawImage(image, entity.x || 0, entity.y || 0); 
-          }
-        }
-
-        return this;
-      },
-      getLayer: function() {
-        return canvas;
-      }
-    };
-  }
 });
 /**
  * Created by Shaun on 5/1/14.
@@ -1772,45 +1631,6 @@ register('ImageLoader', function() {
   }
 
   return loadPath;
-});
-/**
- * Create by Shaun on 1/25/15
- *
- */
-
-register('Scene', 
-  ['Util',
-   'Http',
-   'Common',
-   'Obj',
-   'Func',
-   ],
-function(Util, Http, Common, Obj, Func) {
-  'use strict';
-
-  function getScene(response) {
-    return response.data;
-  }
-
-  return function(sceneUrl) {
-    var baseUrl = Common.getBaseUrl(sceneUrl);
-
-    return Http.get(sceneUrl)
-      .then(getScene, function(response) {
-        Util.warn('Error loading scene at \'' + sceneUrl + '\''); 
-      })
-      .then(function(scene) {
-        return Obj.merge(scene, {
-          sceneWidth: 500,
-          sceneHeight: 500,
-          sceneDepth: 500,
-          url: sceneUrl,
-          baseUrl: baseUrl
-        });
-      }, function() {
-        return null;        
-      });
-  }
 });
 /**
  * Created by Shaun on 2/1/15
@@ -2011,6 +1831,158 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
     };
   }
 });
+
+
+register('Sprite', ['Merge', 'SpriteDefinition'], function(Merge, SpriteDefinition) {
+  'use strict';
+
+  return function (spriteData, baseUrl) {
+    return SpriteDefinition(spriteData.src, baseUrl)
+      .then(function(spriteDefinition) {
+        var sprite = Merge(spriteData);
+        sprite.definition = spriteDefinition;
+        return sprite;
+      });
+  };
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('StreamManager', [], function() {
+  'use strict';
+
+  var streams = {};
+
+  function notify(uri) {
+    if(!streams[uri]) {
+      return;
+    }
+
+    streams[uri].forEach(function(stream) {
+      stream.fetch();
+    });
+  }
+
+  function attach(stream) {
+    var uri = stream.uri;
+    if(!streams[uri]) {
+      streams[uri] = [];
+    }
+    streams[uri].push(stream);
+  }
+
+  return {
+    notify: notify,
+    attach: attach
+  };
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('HttpStream', ['Http', 'StreamManager'], function(Http, StreamManager) {
+  'use strict';
+
+  return function (uri) {
+    var success, error;
+
+    function go(onSuccess, onError) {
+      success = onSuccess;
+      error = onError;
+
+      return fetch();
+    }
+
+    function fetch() {
+      return Http.get(uri)
+        .then(function(response) {
+          if(!success) {
+            return;
+          }
+          return success(response.data);
+        }, function() {
+          console.log('stream error');
+          if(error) {
+            error();
+          }
+        });
+    }
+
+    return {
+      go: go,
+      uri: uri,
+      fetch: fetch
+    };
+  };
+});
+/**
+ * Created by Shaun on 1/25/15
+ *
+ */
+
+register('BackgroundImage', [
+  'Util',
+  'ImageLoader'
+],
+function(Util, ImageLoader) {
+  'use strict';
+
+  return function(imageUrl) {
+    if(!imageUrl) {
+      return;
+    }
+
+    return ImageLoader(imageUrl)
+      .then(function(image) {
+        return image;
+      }, function() {
+        Util.warn('Error loading background at \'' + imageUrl + '\'');
+        return null;
+      });  
+  };
+});
+/**
+ * Created by Shaun on 1/25/15
+ *
+ */
+
+register('Scene', 
+  ['Util',
+   'Http',
+   'Common',
+   'Obj',
+   'Func',
+   ],
+function(Util, Http, Common, Obj, Func) {
+  'use strict';
+
+  function getScene(response) {
+    return response.data;
+  }
+
+  return function(sceneUrl) {
+    var baseUrl = Common.getBaseUrl(sceneUrl);
+
+    return Http.get(sceneUrl)
+      .then(getScene, function(response) {
+        Util.warn('Error loading scene at \'' + sceneUrl + '\''); 
+      })
+      .then(function(scene) {
+        return Obj.merge(scene, {
+          sceneWidth: 500,
+          sceneHeight: 500,
+          sceneDepth: 500,
+          url: sceneUrl,
+          baseUrl: baseUrl
+        });
+      }, function() {
+        return null;        
+      });
+  }
+});
 /**
  * Created by Shaun on 5/31/14.
  *
@@ -2020,15 +1992,15 @@ register('SpriteDefinition', [
   'Util',
   'Http',
   'Merge',
-  'ImageLoader',
+  'SpriteSheet',
   'Common',
   'Func'
 ],
-function(Util, Http, Merge, ImageLoader, Common, Func) {
+function(Util, Http, Merge, SpriteSheet, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
-  var cache = {}; // maybe make this an injectable object
+  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
 
   function getSpriteDefinition(response) {
     var spriteDefinition = Merge(response.data, {
@@ -2049,17 +2021,13 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
     }
 
-    return ImageLoader(spriteDefinition.spriteSheetUrl)
+    return SpriteSheet(spriteDefinition.spriteSheetUrl)
       .then(function(spriteSheet) {
-        Util.log('Sprite sheet loaded!');
         spriteDefinition.spriteSheet = spriteSheet;
         return spriteDefinition;
-      }, function() {
-        Util.warn('sprite sheet not found at ' + spriteDefinition.spriteSheetUrl);
-      }); 
+      });
   }
 
-  // FIXME: this should only happen once per sprite type...
   function setFrameSets(spriteDefinition) {
     if(!spriteDefinition) {
       return null;
@@ -2118,9 +2086,7 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
       return cache[spriteDefinitionUrl];
     }
 
-    if(baseUrl && !Common.isFullUrl(spriteDefinitionUrl)) {
-      fullSpriteDefinitionUrl = baseUrl + '/' + spriteDefinitionUrl;
-    }
+    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
 
     return Http.get(fullSpriteDefinitionUrl)
       .then(getSpriteDefinition, function(response) {
@@ -2138,4 +2104,172 @@ function(Util, Http, Merge, ImageLoader, Common, Func) {
         return null;
       });
   }; 
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('SpriteSheet', ['ImageLoader'], function(ImageLoader) {
+  'use strict';
+
+  return function(uri) {
+    return ImageLoader(uri)
+      .then(function(spriteSheet) {
+        return spriteSheet;
+      }, function() {
+        Util.warn('sprite sheet not found at ' + uri);
+      }); 
+  }; 
+})
+/**
+ * Created by Shaun on 2/5/15
+ * 
+ */
+
+register('BackgroundLayer', [], function() {
+  'use strict';
+
+  return function(canvas) {
+    var background;
+    var context2d = canvas.getContext('2d'); 
+
+    return {
+      setBackground: function(image) {
+        background = image;
+        return this;
+      },
+      draw: function(viewport) {
+        if(!viewport) {
+          return;
+        }
+        
+        context2d.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if(background) {
+          context2d.drawImage(
+            background, 
+            viewport.x, viewport.y, 
+            viewport.width, viewport.height, 
+            0, 0, 
+            viewport.width, viewport.height
+          ); 
+        }
+
+        return this;
+      },
+      getLayer: function() {
+        return canvas;
+      }
+    };
+  }
+});
+/**
+ * Created by Shaun on 2/28/15
+ * 
+ */
+
+register('CollisionLayer', ['Common'], function(Common) {
+  'use strict';
+
+  var COLLIDER_STROKE = '#ff00ff';
+  var ENTITY_STROKE = '#50ff68';
+
+  return function(canvas) {
+    var colliders = [], entities = [];
+    var context2d = canvas.getContext('2d'); 
+
+    return {
+      setEntities: function(value) {
+        entities = value;
+      },
+      setColliders: function(value) {
+        colliders = value;
+      },
+      draw: function(viewport) {
+        context2d.clearRect(0, 0, canvas.width, canvas.height);
+        context2d.strokeStyle = COLLIDER_STROKE;
+
+        colliders.forEach(function(collider) {
+          if(!Common.intersects(collider, viewport)) {
+            return;
+          }
+          context2d.strokeRect(
+            collider.x - viewport.x,
+            collider.y - viewport.y, 
+            collider.width, 
+            collider.height
+          );
+        }); 
+
+        context2d.strokeStyle = ENTITY_STROKE;
+        entities.forEach(function(entity) {
+          if(!Common.intersects(entity, viewport)) {
+            return;
+          }
+          context2d.strokeRect(
+            entity.x - viewport.x,
+            entity.y - viewport.y, 
+            entity.width, 
+            entity.height
+          );
+        });
+        return this;
+      },
+      getLayer: function() {
+        return canvas;
+      }
+    };
+  }
+});
+/**
+ * Created by Shaun on 2/5/15
+ * 
+ */
+
+register('EntityLayer', ['Common'], function(Common) {
+  'use strict';
+
+  return function(canvas) {
+    var entities = [];
+    var context2d = canvas.getContext('2d'); 
+
+    return {
+      addEntity: function(entity) {
+        entities.push(entity);
+        return this;
+      },
+      draw: function(viewport) {
+        var entity, image;
+
+        context2d.clearRect(0, 0, canvas.width, canvas.height);
+
+        for(var i = 0, numEntities = entities.length; i < numEntities; i++) {
+          entity = entities[i];
+
+          if(!entity.animation) {
+            continue;
+          }
+
+          if(!Common.intersects(entity, viewport)) {
+            continue;            
+          }
+
+          image = entity.animation.getImage();
+          if(image) {
+            context2d.drawImage(
+              image, 
+              entity.x - viewport.x || 0, 
+              entity.y - viewport.y || 0
+            ); 
+          }
+        }
+
+        return this;
+      },
+      getLayer: function() {
+        return canvas;
+      }
+    };
+  }
 });
