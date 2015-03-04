@@ -1595,6 +1595,66 @@ register('Common', function() {
   };
 });
 /**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('HttpResource', ['Http', 'Resource'], function(Http, Resource) {
+  'use strict';
+
+  return function (uri) {
+    /*var successCallbacks = [], errorCallbacks = [];
+    var resource = {
+      ready: ready,
+      uri: uri,
+      fetch: fetch
+    };
+
+    function ready(onSuccess, onError) {
+      successCallbacks.push(onSuccess);
+      errorCallbacks.push(onError);
+
+      return {
+        ready: ready
+      };
+    }*/
+
+    /*function fetch() {
+      return Http.get(uri)
+        .then(function(response) {
+          var result = response.data;
+          successCallbacks.forEach(function(successCallback) {
+            result = successCallback(result);
+          });
+
+        }, function() {
+          console.log('stream error');
+          errorCallbacks.forEach(function(errorCallback) {
+            errorCallback();
+          });
+        });
+    }
+
+    ResourceRegistry.register(resource);
+    fetch();*/
+
+    return Resource(uri).fetch(function (onSuccess, onError) {
+      Http.get(uri)
+        .then(
+          function(response) {
+            onSuccess(response.data);
+          }, 
+          function() {
+            console.log('stream error');
+            onError();
+          }
+        );
+    });
+
+    //return resource;
+  };
+});
+/**
  * Created by Shaun on 5/1/14.
  */
 
@@ -1631,6 +1691,90 @@ register('ImageLoader', function() {
   }
 
   return loadPath;
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('ResourceRegistry', [], function() {
+  'use strict';
+
+  var resources = {};
+
+  /*function notify(uri) {
+    if(!resources[uri]) {
+      return;
+    }
+
+    resources[uri].forEach(function(resource) {
+      resource.fetch();
+    });
+  }*/
+
+  function register(resource) {
+    var uri = resource.uri;
+    if(!resources[uri]) {
+      resources[uri] = [];
+    }
+    resources[uri].push(resource);
+  }
+
+  return {
+    register: register,
+    resources: resources
+  };
+});
+/**
+ * Created by Shaun on 3/3/15
+ *
+ */
+
+register('Resource', ['ResourceRegistry'], function(ResourceRegistry) {
+  'use strict';
+
+  return function (uri) {
+    var successCallbacks = [], errorCallbacks = [];
+    var resource = {
+      ready: ready,
+      uri: uri,
+      fetch: fetch
+    };
+
+    function ready(onSuccess, onError) {
+      successCallbacks.push(onSuccess);
+      errorCallbacks.push(onError);
+
+      return {
+        ready: ready
+      };
+    }
+
+    function onSuccess(result) {
+      successCallbacks.forEach(function(successCallback) {
+        result = successCallback(result);
+      });
+      return result;
+    }
+
+    function onError() {
+      errorCallbacks.forEach(function(errorCallback) {
+        errorCallback();
+      });
+      return null;
+    }
+
+    function fetch(cb) {
+      if(cb) {
+        cb(onSuccess, onError);
+      } 
+      return this;     
+    }
+
+    ResourceRegistry.register(resource);
+
+    return resource;
+  };
 });
 /**
  * Created by Shaun on 2/1/15
@@ -1846,283 +1990,6 @@ register('Sprite', ['Merge', 'SpriteDefinition'], function(Merge, SpriteDefiniti
   };
 });
 /**
- * Created by Shaun on 3/1/15
- *
- */
-
-register('StreamManager', [], function() {
-  'use strict';
-
-  var streams = {};
-
-  function notify(uri) {
-    if(!streams[uri]) {
-      return;
-    }
-
-    streams[uri].forEach(function(stream) {
-      stream.fetch();
-    });
-  }
-
-  function attach(stream) {
-    var uri = stream.uri;
-    if(!streams[uri]) {
-      streams[uri] = [];
-    }
-    streams[uri].push(stream);
-  }
-
-  return {
-    notify: notify,
-    attach: attach
-  };
-});
-/**
- * Created by Shaun on 3/1/15
- *
- */
-
-register('HttpStream', ['Http', 'StreamManager'], function(Http, StreamManager) {
-  'use strict';
-
-  return function (uri) {
-    var success, error;
-
-    function go(onSuccess, onError) {
-      success = onSuccess;
-      error = onError;
-
-      return fetch();
-    }
-
-    function fetch() {
-      return Http.get(uri)
-        .then(function(response) {
-          if(!success) {
-            return;
-          }
-          return success(response.data);
-        }, function() {
-          console.log('stream error');
-          if(error) {
-            error();
-          }
-        });
-    }
-
-    return {
-      go: go,
-      uri: uri,
-      fetch: fetch
-    };
-  };
-});
-/**
- * Created by Shaun on 1/25/15
- *
- */
-
-register('BackgroundImage', [
-  'Util',
-  'ImageLoader'
-],
-function(Util, ImageLoader) {
-  'use strict';
-
-  return function(imageUrl) {
-    if(!imageUrl) {
-      return;
-    }
-
-    return ImageLoader(imageUrl)
-      .then(function(image) {
-        return image;
-      }, function() {
-        Util.warn('Error loading background at \'' + imageUrl + '\'');
-        return null;
-      });  
-  };
-});
-/**
- * Created by Shaun on 1/25/15
- *
- */
-
-register('Scene', 
-  ['Util',
-   'Http',
-   'Common',
-   'Obj',
-   'Func',
-   ],
-function(Util, Http, Common, Obj, Func) {
-  'use strict';
-
-  function getScene(response) {
-    return response.data;
-  }
-
-  return function(sceneUrl) {
-    var baseUrl = Common.getBaseUrl(sceneUrl);
-
-    return Http.get(sceneUrl)
-      .then(getScene, function(response) {
-        Util.warn('Error loading scene at \'' + sceneUrl + '\''); 
-      })
-      .then(function(scene) {
-        return Obj.merge(scene, {
-          sceneWidth: 500,
-          sceneHeight: 500,
-          sceneDepth: 500,
-          url: sceneUrl,
-          baseUrl: baseUrl
-        });
-      }, function() {
-        return null;        
-      });
-  }
-});
-/**
- * Created by Shaun on 5/31/14.
- *
- */
-
-register('SpriteDefinition', [
-  'Util',
-  'Http',
-  'Merge',
-  'SpriteSheet',
-  'Common',
-  'Func'
-],
-function(Util, Http, Merge, SpriteSheet, Common, Func) {
-  'use strict';
-
-  var DEFAULT_RATE = 5;
-  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
-
-  function getSpriteDefinition(response) {
-    var spriteDefinition = Merge(response.data, {
-      frameWidth: 48,
-      frameHeight: 48
-    });
-
-    return spriteDefinition;
-  }
-
-  // Download a spriteDefinition sheet
-  function getSpriteSheet(baseUrl, spriteDefinition) {
-    if(!spriteDefinition.spriteSheetUrl) {
-      return null;
-    }
-
-    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
-      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
-    }
-
-    return SpriteSheet(spriteDefinition.spriteSheetUrl)
-      .then(function(spriteSheet) {
-        spriteDefinition.spriteSheet = spriteSheet;
-        return spriteDefinition;
-      });
-  }
-
-  function setFrameSets(spriteDefinition) {
-    if(!spriteDefinition) {
-      return null;
-    }
-
-    spriteDefinition.frameSets = Object
-      .keys(spriteDefinition.frameSetDefinitions)
-      .reduce(function(frameSets, frameSetId) {
-        var frameSet = buildFrameSet(
-          spriteDefinition.frameSetDefinitions[frameSetId], 
-          spriteDefinition
-        );
-
-        frameSet.frames = frameSet.frames
-          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
-
-        frameSets[frameSetId] = frameSet;
-
-        return frameSets;
-      }, {});
-
-    return spriteDefinition;
-  }
-
-  // Returns a sequence of frame images given a frame set definition and a sprite sheet
-  function buildFrameSet(frameSetDefinition, spriteDefinition) {
-    var frameWidth = spriteDefinition.frameWidth;
-    var frameHeight = spriteDefinition.frameHeight;
-
-    return {
-      rate: frameSetDefinition.rate || DEFAULT_RATE,
-      frames: frameSetDefinition.frames
-        .map(function(frameDefinition) {
-          var frame = Common.getCanvas(frameWidth, frameHeight);
-
-          frame
-            .getContext('2d')
-            .drawImage(
-              spriteDefinition.spriteSheet,
-              frameDefinition.x, frameDefinition.y,
-              frameWidth, frameHeight,
-              0, 0,
-              frameWidth, frameHeight
-            );
-
-          return frame;
-        })
-    };
-  }
-
-  // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteDefinitionUrl, baseUrl) {
-    var fullSpriteDefinitionUrl;
-
-    if(cache[spriteDefinitionUrl]) {
-      return cache[spriteDefinitionUrl];
-    }
-
-    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
-
-    return Http.get(fullSpriteDefinitionUrl)
-      .then(getSpriteDefinition, function(response) {
-        Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
-      })
-      .then(Func.partial(getSpriteSheet, baseUrl))
-      .then(setFrameSets)
-      .then(function(spriteDefinition) {
-        if(spriteDefinition) {
-          spriteDefinition.url = fullSpriteDefinitionUrl;
-        }
-        cache[spriteDefinitionUrl] = spriteDefinition;
-        return spriteDefinition;
-      }, function() {
-        return null;
-      });
-  }; 
-});
-/**
- * Created by Shaun on 3/1/15
- *
- */
-
-register('SpriteSheet', ['ImageLoader'], function(ImageLoader) {
-  'use strict';
-
-  return function(uri) {
-    return ImageLoader(uri)
-      .then(function(spriteSheet) {
-        return spriteSheet;
-      }, function() {
-        Util.warn('sprite sheet not found at ' + uri);
-      }); 
-  }; 
-})
-/**
  * Created by Shaun on 2/5/15
  * 
  */
@@ -2273,3 +2140,201 @@ register('EntityLayer', ['Common'], function(Common) {
     };
   }
 });
+/**
+ * Created by Shaun on 1/25/15
+ *
+ */
+
+register('BackgroundImage', [
+  'Util',
+  'ImageLoader'
+],
+function(Util, ImageLoader) {
+  'use strict';
+
+  return function(imageUrl) {
+    if(!imageUrl) {
+      return;
+    }
+
+    return ImageLoader(imageUrl)
+      .then(function(image) {
+        return image;
+      }, function() {
+        Util.warn('Error loading background at \'' + imageUrl + '\'');
+        return null;
+      });  
+  };
+});
+/**
+ * Created by Shaun on 1/25/15
+ *
+ */
+
+register('Scene', 
+  ['Util',
+   'Http',
+   'HttpResource',
+   'Common',
+   'Obj',
+   'Func',
+   ],
+function(Util, Http, HttpResource, Common, Obj, Func) {
+  'use strict';
+
+  return function(uri) {
+    var baseUrl = Common.getBaseUrl(uri);
+
+    return HttpResource(uri)
+      .ready(function(scene) {
+        return Obj.merge(scene, {
+          sceneWidth: 500,
+          sceneHeight: 500,
+          sceneDepth: 500,
+          url: uri,
+          baseUrl: baseUrl
+        });
+      }, function() {
+        Util.warn('Error loading scene at \'' + uri + '\''); 
+      });
+  };
+});
+/**
+ * Created by Shaun on 5/31/14.
+ *
+ */
+
+register('SpriteDefinition', [
+  'Util',
+  'Http',
+  'Merge',
+  'SpriteSheet',
+  'Common',
+  'Func'
+],
+function(Util, Http, Merge, SpriteSheet, Common, Func) {
+  'use strict';
+
+  var DEFAULT_RATE = 5;
+  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
+
+  function getSpriteDefinition(response) {
+    var spriteDefinition = Merge(response.data, {
+      frameWidth: 48,
+      frameHeight: 48
+    });
+
+    return spriteDefinition;
+  }
+
+  // Download a spriteDefinition sheet
+  function getSpriteSheet(baseUrl, spriteDefinition) {
+    if(!spriteDefinition.spriteSheetUrl) {
+      return null;
+    }
+
+    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
+      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
+    }
+
+    return SpriteSheet(spriteDefinition.spriteSheetUrl)
+      .then(function(spriteSheet) {
+        spriteDefinition.spriteSheet = spriteSheet;
+        return spriteDefinition;
+      });
+  }
+
+  function setFrameSets(spriteDefinition) {
+    if(!spriteDefinition) {
+      return null;
+    }
+
+    spriteDefinition.frameSets = Object
+      .keys(spriteDefinition.frameSetDefinitions)
+      .reduce(function(frameSets, frameSetId) {
+        var frameSet = buildFrameSet(
+          spriteDefinition.frameSetDefinitions[frameSetId], 
+          spriteDefinition
+        );
+
+        frameSet.frames = frameSet.frames
+          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
+
+        frameSets[frameSetId] = frameSet;
+
+        return frameSets;
+      }, {});
+
+    return spriteDefinition;
+  }
+
+  // Returns a sequence of frame images given a frame set definition and a sprite sheet
+  function buildFrameSet(frameSetDefinition, spriteDefinition) {
+    var frameWidth = spriteDefinition.frameWidth;
+    var frameHeight = spriteDefinition.frameHeight;
+
+    return {
+      rate: frameSetDefinition.rate || DEFAULT_RATE,
+      frames: frameSetDefinition.frames
+        .map(function(frameDefinition) {
+          var frame = Common.getCanvas(frameWidth, frameHeight);
+
+          frame
+            .getContext('2d')
+            .drawImage(
+              spriteDefinition.spriteSheet,
+              frameDefinition.x, frameDefinition.y,
+              frameWidth, frameHeight,
+              0, 0,
+              frameWidth, frameHeight
+            );
+
+          return frame;
+        })
+    };
+  }
+
+  // Main function. Gets sprite data and calls support functions to build frames.
+  return function (spriteDefinitionUrl, baseUrl) {
+    var fullSpriteDefinitionUrl;
+
+    if(cache[spriteDefinitionUrl]) {
+      return cache[spriteDefinitionUrl];
+    }
+
+    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
+
+    return Http.get(fullSpriteDefinitionUrl)
+      .then(getSpriteDefinition, function(response) {
+        Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
+      })
+      .then(Func.partial(getSpriteSheet, baseUrl))
+      .then(setFrameSets)
+      .then(function(spriteDefinition) {
+        if(spriteDefinition) {
+          spriteDefinition.url = fullSpriteDefinitionUrl;
+        }
+        cache[spriteDefinitionUrl] = spriteDefinition;
+        return spriteDefinition;
+      }, function() {
+        return null;
+      });
+  }; 
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('SpriteSheet', ['ImageLoader'], function(ImageLoader) {
+  'use strict';
+
+  return function(uri) {
+    return ImageLoader(uri)
+      .then(function(spriteSheet) {
+        return spriteSheet;
+      }, function() {
+        Util.warn('sprite sheet not found at ' + uri);
+      }); 
+  }; 
+})

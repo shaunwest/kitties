@@ -73,7 +73,7 @@
 
       // Get scene
       Scene('assets/kitty-world.json')
-        .then(function(scene) {
+        .ready(function(scene) {
           makeLayers(scene.layerDefinitions, { 
             background: function (data) {
               var fullUrl = Common.normalizeUrl(data.backgroundUrl, scene.baseUrl);
