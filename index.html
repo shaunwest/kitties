@@ -19,20 +19,20 @@
     use([
       'Util',
       'Sprite', 
-      'Scene',
+      'SceneResource',
       'SpriteAnimation',
       'EntityLayer',
       'BackgroundLayer',
       'CollisionLayer',
       'Scheduler', 
       'ImageLoader',
-      'BackgroundImage',
+      'ImageResource',
       'Common',
       'canvas-background',
       'canvas-entities',
       'canvas-colliders',
       ],
-    function(Util, Sprite, Scene, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, BackgroundImage, Common, canvasBackground, canvasEntities, canvasColliders) {
+    function(Util, Sprite, SceneResource, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, ImageResource, Common, canvasBackground, canvasEntities, canvasColliders) {
       'use strict';
 
       function makeLayers(layerDefinitions, actions) {
@@ -72,20 +72,20 @@
       });
 
       // Get scene
-      Scene('assets/kitty-world.json')
+      SceneResource('assets/kitty-world.json')
         .ready(function(scene) {
           makeLayers(scene.layerDefinitions, { 
             background: function (data) {
               var fullUrl = Common.normalizeUrl(data.backgroundUrl, scene.baseUrl);
-              BackgroundImage(fullUrl)
-                .then(function(image) {
+              ImageResource(fullUrl)
+                .ready(function(image) {
                   backgroundLayer.setBackground(image);
                 });
             },
             entities: function (data) {
               data.sprites.forEach(function(spriteData) {
                 Sprite(spriteData, scene.baseUrl)
-                  .then(function(sprite) {
+                  .ready(function(sprite) {
                     sprite.animation = SpriteAnimation(sprite.definition)
                       .play('run');
 

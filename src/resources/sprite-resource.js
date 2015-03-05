@@ -3,31 +3,31 @@
  *
  */
 
-register('SpriteDefinition', [
+register('SpriteResource', [
   'Util',
-  'Http',
+  'HttpResource',
   'Merge',
-  'SpriteSheet',
+  'ImageResource',
+  'FrameSet',
   'Common',
   'Func'
 ],
-function(Util, Http, Merge, SpriteSheet, Common, Func) {
+function(Util, HttpResource, Merge, ImageResource, FrameSet, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
-  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
 
-  function getSpriteDefinition(response) {
+  /*function getSpriteDefinition(response) {
     var spriteDefinition = Merge(response.data, {
       frameWidth: 48,
       frameHeight: 48
     });
 
     return spriteDefinition;
-  }
+  }*/
 
   // Download a spriteDefinition sheet
-  function getSpriteSheet(baseUrl, spriteDefinition) {
+  /*function getSpriteSheet(baseUrl, spriteDefinition) {
     if(!spriteDefinition.spriteSheetUrl) {
       return null;
     }
@@ -91,19 +91,33 @@ function(Util, Http, Merge, SpriteSheet, Common, Func) {
           return frame;
         })
     };
-  }
+  }*/
 
   // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteDefinitionUrl, baseUrl) {
-    var fullSpriteDefinitionUrl;
+  return function (uri, baseUrl) {
+    var fullSpriteDefinitionUrl = Common.normalizeUrl(uri, baseUrl);
 
-    if(cache[spriteDefinitionUrl]) {
-      return cache[spriteDefinitionUrl];
-    }
+    return HttpResource(fullSpriteDefinitionUrl)
+      .ready(function(spriteDefinition) {
+        var spriteSheetUri;
 
-    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
+        spriteDefinition = Merge(spriteDefinition);
+        spriteSheetUri = spriteDefinition.spriteSheetUrl;
 
-    return Http.get(fullSpriteDefinitionUrl)
+        if(!Common.isFullUrl(spriteSheetUri)) {
+          spriteSheetUri = baseUrl + '/' + spriteSheetUri;
+        }
+
+        return ImageResource(spriteSheetUri)
+          .ready(function(spriteSheet) {
+            spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
+            return spriteDefinition;
+          });
+
+        //return spriteDefinition;
+      });
+
+    /*return Http.get(fullSpriteDefinitionUrl)
       .then(getSpriteDefinition, function(response) {
         Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
       })
@@ -113,10 +127,9 @@ function(Util, Http, Merge, SpriteSheet, Common, Func) {
         if(spriteDefinition) {
           spriteDefinition.url = fullSpriteDefinitionUrl;
         }
-        cache[spriteDefinitionUrl] = spriteDefinition;
         return spriteDefinition;
       }, function() {
         return null;
-      });
+      });*/
   }; 
 });

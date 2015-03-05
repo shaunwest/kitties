@@ -8,26 +8,26 @@ register('ResourceRegistry', [], function() {
 
   var resources = {};
 
-  /*function notify(uri) {
-    if(!resources[uri]) {
-      return;
-    }
-
-    resources[uri].forEach(function(resource) {
-      resource.fetch();
-    });
-  }*/
-
-  function register(resource) {
+  function register (resource) {
     var uri = resource.uri;
+
     if(!resources[uri]) {
       resources[uri] = [];
     }
+
     resources[uri].push(resource);
+  }
+
+  function getResources (uri) {
+    if(!uri) {
+      return resources;
+    }
+
+    return resources[uri];
   }
 
   return {
     register: register,
-    resources: resources
+    getResources: getResources
   };
 });

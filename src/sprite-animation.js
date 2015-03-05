@@ -2,26 +2,26 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
   return function (sprite) {
-    var currentFrameSet = null,
+    var currentFrameSequence = null,
       currentFrameIndex = 0,
       currentFrame = null,
       frameCallback = null;
 
     var schedulerId = Scheduler(function(deltaTime, setRate) {
-      if(!currentFrameSet) {
+      if(!currentFrameSequence) {
         return;
       }
 
       if(!currentFrame) {
-        setRate(currentFrameSet.rate);
+        setRate(currentFrameSequence.rate);
       }
       
-      currentFrame = currentFrameSet.frames[currentFrameIndex]
+      currentFrame = currentFrameSequence.frames[currentFrameIndex]
       if(frameCallback) {
         frameCallback(currentFrame);
       }
 
-      if(++currentFrameIndex >= currentFrameSet.frames.length) {
+      if(++currentFrameIndex >= currentFrameSequence.frames.length) {
         currentFrameIndex = 0;        
       }
     })
@@ -29,7 +29,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 
     return {
       play: function(frameSetId) {
-        currentFrameSet = sprite.frameSets[frameSetId];
+        currentFrameSequence = sprite.frameSet[frameSetId];
         currentFrameIndex = 0;
         currentFrame = null;
         return this;
@@ -39,7 +39,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
         return this;
       },
       stop: function() {
-        currentFrameSet = null;
+        currentFrameSequence = null;
         return this;
       },
       kill: function() {

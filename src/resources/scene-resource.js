@@ -3,15 +3,13 @@
  *
  */
 
-register('Scene', 
-  ['Util',
-   'Http',
-   'HttpResource',
-   'Common',
-   'Obj',
-   'Func',
-   ],
-function(Util, Http, HttpResource, Common, Obj, Func) {
+register('SceneResource', 
+  [
+    'HttpResource',
+    'Common',
+    'Obj'
+  ],
+function(HttpResource, Common, Obj) {
   'use strict';
 
   return function(uri) {
@@ -26,8 +24,6 @@ function(Util, Http, HttpResource, Common, Obj, Func) {
           url: uri,
           baseUrl: baseUrl
         });
-      }, function() {
-        Util.warn('Error loading scene at \'' + uri + '\''); 
       });
   };
 });

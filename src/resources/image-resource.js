@@ -3,24 +3,10 @@
  *
  */
 
-register('BackgroundImage', [
-  'Util',
-  'ImageLoader'
-],
-function(Util, ImageLoader) {
+register('ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Resource) {
   'use strict';
 
-  return function(imageUrl) {
-    if(!imageUrl) {
-      return;
-    }
-
-    return ImageLoader(imageUrl)
-      .then(function(image) {
-        return image;
-      }, function() {
-        Util.warn('Error loading background at \'' + imageUrl + '\'');
-        return null;
-      });  
+  return function (uri) {
+    return Resource(uri, ImageLoader);
   };
 });

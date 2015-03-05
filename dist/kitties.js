@@ -1599,82 +1599,80 @@ register('Common', function() {
  *
  */
 
-register('HttpResource', ['Http', 'Resource'], function(Http, Resource) {
+register('FrameSet', ['Common', 'Func'], function(Common, Func) {
+  'use strict';
+
+  function buildFrameSequence(frameSetDefinition, frameSize, spriteSheet) {
+    var frameWidth = frameSize.width;
+    var frameHeight = frameSize.height;
+
+    return {
+      rate: frameSetDefinition.rate || DEFAULT_RATE,
+      frames: frameSetDefinition.frames
+        .map(function(frameDefinition) {
+          var frame = Common.getCanvas(frameWidth, frameHeight);
+
+          frame
+            .getContext('2d')
+            .drawImage(
+              spriteSheet,
+              frameDefinition.x, frameDefinition.y,
+              frameWidth, frameHeight,
+              0, 0,
+              frameWidth, frameHeight
+            );
+
+          return frame;
+        })
+    };
+  }
+
+  return function (spriteDefinition, spriteSheet) {
+    return Object
+      .keys(spriteDefinition.frameSet)
+      .reduce(function(frameSet, frameSetId) {
+        var frameSequence = buildFrameSequence(
+          spriteDefinition.frameSet[frameSetId], 
+          spriteDefinition.frameSize,
+          spriteSheet
+        );
+
+        frameSequence.frames = frameSequence.frames
+          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
+
+        frameSet[frameSetId] = frameSequence;
+
+        return frameSet;
+      }, {});
+  };
+});
+/**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('HttpResource', ['Util', 'Http', 'Resource'], function(Util, Http, Resource) {
   'use strict';
 
   return function (uri) {
-    /*var successCallbacks = [], errorCallbacks = [];
-    var resource = {
-      ready: ready,
-      uri: uri,
-      fetch: fetch
-    };
-
-    function ready(onSuccess, onError) {
-      successCallbacks.push(onSuccess);
-      errorCallbacks.push(onError);
-
-      return {
-        ready: ready
-      };
-    }*/
-
-    /*function fetch() {
-      return Http.get(uri)
-        .then(function(response) {
-          var result = response.data;
-          successCallbacks.forEach(function(successCallback) {
-            result = successCallback(result);
-          });
-
-        }, function() {
-          console.log('stream error');
-          errorCallbacks.forEach(function(errorCallback) {
-            errorCallback();
-          });
-        });
-    }
-
-    ResourceRegistry.register(resource);
-    fetch();*/
-
-    return Resource(uri).fetch(function (onSuccess, onError) {
-      Http.get(uri)
-        .then(
-          function(response) {
-            onSuccess(response.data);
-          }, 
-          function() {
-            console.log('stream error');
-            onError();
-          }
-        );
-    });
-
-    //return resource;
+    return Resource(uri, Http.get)
+      .ready(
+        function(response) {
+          return response.data;
+        }
+      );
   };
 });
 /**
  * Created by Shaun on 5/1/14.
  */
 
-register('ImageLoader', function() {
+register('ImageLoader', function () {
   'use strict';
 
   var IMAGE_WAIT_INTERVAL = 100;
 
-  function loadPath(path) {
-    var image, promise;
-
-    image = new Image();
-    image.src = path;
-
-    promise = waitForImage(image);
-
-    return promise;
-  }
-
-  function waitForImage(image) {
+  function waitForImage (image) {
     return new Promise(function(resolve, reject) {
       var intervalId = setInterval(function() {
         if(image.complete) {
@@ -1683,14 +1681,23 @@ register('ImageLoader', function() {
         }
       }, IMAGE_WAIT_INTERVAL);
 
-      image.onerror = function() {
+      image.onerror = function () {
         clearInterval(intervalId);
         reject();
       };
     });
   }
 
-  return loadPath;
+  return function (uri) {
+    var image, promise;
+
+    image = new Image();
+    image.src = uri;
+
+    promise = waitForImage(image);
+
+    return promise;
+  };
 });
 /**
  * Created by Shaun on 3/1/15
@@ -1702,27 +1709,27 @@ register('ResourceRegistry', [], function() {
 
   var resources = {};
 
-  /*function notify(uri) {
-    if(!resources[uri]) {
-      return;
-    }
-
-    resources[uri].forEach(function(resource) {
-      resource.fetch();
-    });
-  }*/
-
-  function register(resource) {
+  function register (resource) {
     var uri = resource.uri;
+
     if(!resources[uri]) {
       resources[uri] = [];
     }
+
     resources[uri].push(resource);
+  }
+
+  function getResources (uri) {
+    if(!uri) {
+      return resources;
+    }
+
+    return resources[uri];
   }
 
   return {
     register: register,
-    resources: resources
+    getResources: getResources
   };
 });
 /**
@@ -1730,18 +1737,21 @@ register('ResourceRegistry', [], function() {
  *
  */
 
-register('Resource', ['ResourceRegistry'], function(ResourceRegistry) {
+register('Resource', ['Util', 'ResourceRegistry'], function(Util, ResourceRegistry) {
   'use strict';
 
-  return function (uri) {
+  return function (uri, method) {
     var successCallbacks = [], errorCallbacks = [];
     var resource = {
       ready: ready,
-      uri: uri,
-      fetch: fetch
+      fetch: fetch,
+      uri: uri
     };
 
     function ready(onSuccess, onError) {
+      if(!onSuccess) {
+        Util.error('Resource: ready requires a success callback');
+      }
       successCallbacks.push(onSuccess);
       errorCallbacks.push(onError);
 
@@ -1751,27 +1761,50 @@ register('Resource', ['ResourceRegistry'], function(ResourceRegistry) {
     }
 
     function onSuccess(result) {
-      successCallbacks.forEach(function(successCallback) {
+      var successCallback = successCallbacks.shift();
+
+      /*while(successCallback = successCallbacks.shift()) {
         result = successCallback(result);
-      });
+      }*/
+      if(successCallback) {
+        result = successCallback(result);
+        if(result && result.ready) {
+          result.ready(function(result) {
+            onSuccess(result);
+          });
+        } else {
+          onSuccess(result);
+        }
+      }
+    }
+
+    function onError(result) {
+      var errorCallback;
+
+      while(errorCallback = errorCallbacks.shift()) {
+        if(errorCallback) {
+          result = errorCallback(result);        
+        }
+      }
+
       return result;
     }
 
-    function onError() {
-      errorCallbacks.forEach(function(errorCallback) {
-        errorCallback();
-      });
-      return null;
+    function fetch() {
+      var promise = method(uri);
+      if(!Util.isObject(promise) || !promise.then) {
+        Util.error('Provided resource method did not return a thenable object');
+      }
+      return promise.then(onSuccess, onError);
     }
 
-    function fetch(cb) {
-      if(cb) {
-        cb(onSuccess, onError);
-      } 
-      return this;     
+    if(!Util.isFunction(method)) {
+      Util.error('Provided resource method must be a function');
     }
 
     ResourceRegistry.register(resource);
+
+    fetch();
 
     return resource;
   };
@@ -1922,26 +1955,26 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
   return function (sprite) {
-    var currentFrameSet = null,
+    var currentFrameSequence = null,
       currentFrameIndex = 0,
       currentFrame = null,
       frameCallback = null;
 
     var schedulerId = Scheduler(function(deltaTime, setRate) {
-      if(!currentFrameSet) {
+      if(!currentFrameSequence) {
         return;
       }
 
       if(!currentFrame) {
-        setRate(currentFrameSet.rate);
+        setRate(currentFrameSequence.rate);
       }
       
-      currentFrame = currentFrameSet.frames[currentFrameIndex]
+      currentFrame = currentFrameSequence.frames[currentFrameIndex]
       if(frameCallback) {
         frameCallback(currentFrame);
       }
 
-      if(++currentFrameIndex >= currentFrameSet.frames.length) {
+      if(++currentFrameIndex >= currentFrameSequence.frames.length) {
         currentFrameIndex = 0;        
       }
     })
@@ -1949,7 +1982,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 
     return {
       play: function(frameSetId) {
-        currentFrameSet = sprite.frameSets[frameSetId];
+        currentFrameSequence = sprite.frameSet[frameSetId];
         currentFrameIndex = 0;
         currentFrame = null;
         return this;
@@ -1959,7 +1992,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
         return this;
       },
       stop: function() {
-        currentFrameSet = null;
+        currentFrameSequence = null;
         return this;
       },
       kill: function() {
@@ -1977,12 +2010,12 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 });
 
 
-register('Sprite', ['Merge', 'SpriteDefinition'], function(Merge, SpriteDefinition) {
+register('Sprite', ['Merge', 'SpriteResource'], function(Merge, SpriteResource) {
   'use strict';
 
   return function (spriteData, baseUrl) {
-    return SpriteDefinition(spriteData.src, baseUrl)
-      .then(function(spriteDefinition) {
+    return SpriteResource(spriteData.src, baseUrl)
+      .ready(function(spriteDefinition) {
         var sprite = Merge(spriteData);
         sprite.definition = spriteDefinition;
         return sprite;
@@ -2145,25 +2178,11 @@ register('EntityLayer', ['Common'], function(Common) {
  *
  */
 
-register('BackgroundImage', [
-  'Util',
-  'ImageLoader'
-],
-function(Util, ImageLoader) {
+register('ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Resource) {
   'use strict';
 
-  return function(imageUrl) {
-    if(!imageUrl) {
-      return;
-    }
-
-    return ImageLoader(imageUrl)
-      .then(function(image) {
-        return image;
-      }, function() {
-        Util.warn('Error loading background at \'' + imageUrl + '\'');
-        return null;
-      });  
+  return function (uri) {
+    return Resource(uri, ImageLoader);
   };
 });
 /**
@@ -2171,15 +2190,13 @@ function(Util, ImageLoader) {
  *
  */
 
-register('Scene', 
-  ['Util',
-   'Http',
-   'HttpResource',
-   'Common',
-   'Obj',
-   'Func',
-   ],
-function(Util, Http, HttpResource, Common, Obj, Func) {
+register('SceneResource', 
+  [
+    'HttpResource',
+    'Common',
+    'Obj'
+  ],
+function(HttpResource, Common, Obj) {
   'use strict';
 
   return function(uri) {
@@ -2194,8 +2211,6 @@ function(Util, Http, HttpResource, Common, Obj, Func) {
           url: uri,
           baseUrl: baseUrl
         });
-      }, function() {
-        Util.warn('Error loading scene at \'' + uri + '\''); 
       });
   };
 });
@@ -2204,31 +2219,31 @@ function(Util, Http, HttpResource, Common, Obj, Func) {
  *
  */
 
-register('SpriteDefinition', [
+register('SpriteResource', [
   'Util',
-  'Http',
+  'HttpResource',
   'Merge',
-  'SpriteSheet',
+  'ImageResource',
+  'FrameSet',
   'Common',
   'Func'
 ],
-function(Util, Http, Merge, SpriteSheet, Common, Func) {
+function(Util, HttpResource, Merge, ImageResource, FrameSet, Common, Func) {
   'use strict';
 
   var DEFAULT_RATE = 5;
-  var cache = {}; // maybe make this an injectable object OR see if browser cache can be used
 
-  function getSpriteDefinition(response) {
+  /*function getSpriteDefinition(response) {
     var spriteDefinition = Merge(response.data, {
       frameWidth: 48,
       frameHeight: 48
     });
 
     return spriteDefinition;
-  }
+  }*/
 
   // Download a spriteDefinition sheet
-  function getSpriteSheet(baseUrl, spriteDefinition) {
+  /*function getSpriteSheet(baseUrl, spriteDefinition) {
     if(!spriteDefinition.spriteSheetUrl) {
       return null;
     }
@@ -2292,19 +2307,33 @@ function(Util, Http, Merge, SpriteSheet, Common, Func) {
           return frame;
         })
     };
-  }
+  }*/
 
   // Main function. Gets sprite data and calls support functions to build frames.
-  return function (spriteDefinitionUrl, baseUrl) {
-    var fullSpriteDefinitionUrl;
+  return function (uri, baseUrl) {
+    var fullSpriteDefinitionUrl = Common.normalizeUrl(uri, baseUrl);
 
-    if(cache[spriteDefinitionUrl]) {
-      return cache[spriteDefinitionUrl];
-    }
+    return HttpResource(fullSpriteDefinitionUrl)
+      .ready(function(spriteDefinition) {
+        var spriteSheetUri;
 
-    fullSpriteDefinitionUrl = Common.normalizeUrl(spriteDefinitionUrl, baseUrl);
+        spriteDefinition = Merge(spriteDefinition);
+        spriteSheetUri = spriteDefinition.spriteSheetUrl;
 
-    return Http.get(fullSpriteDefinitionUrl)
+        if(!Common.isFullUrl(spriteSheetUri)) {
+          spriteSheetUri = baseUrl + '/' + spriteSheetUri;
+        }
+
+        return ImageResource(spriteSheetUri)
+          .ready(function(spriteSheet) {
+            spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
+            return spriteDefinition;
+          });
+
+        //return spriteDefinition;
+      });
+
+    /*return Http.get(fullSpriteDefinitionUrl)
       .then(getSpriteDefinition, function(response) {
         Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
       })
@@ -2314,11 +2343,10 @@ function(Util, Http, Merge, SpriteSheet, Common, Func) {
         if(spriteDefinition) {
           spriteDefinition.url = fullSpriteDefinitionUrl;
         }
-        cache[spriteDefinitionUrl] = spriteDefinition;
         return spriteDefinition;
       }, function() {
         return null;
-      });
+      });*/
   }; 
 });
 /**
@@ -2326,15 +2354,31 @@ function(Util, Http, Merge, SpriteSheet, Common, Func) {
  *
  */
 
-register('SpriteSheet', ['ImageLoader'], function(ImageLoader) {
+register('SpriteSheetResource', ['ImageResource'], function(ImageResource) {
   'use strict';
 
-  return function(uri) {
-    return ImageLoader(uri)
+  /*function getSpriteSheet(baseUrl, spriteDefinition) {
+    if(!spriteDefinition.spriteSheetUrl) {
+      return null;
+    }
+
+    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
+      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
+    }
+
+    return SpriteSheet(spriteDefinition.spriteSheetUrl)
       .then(function(spriteSheet) {
-        return spriteSheet;
-      }, function() {
-        Util.warn('sprite sheet not found at ' + uri);
-      }); 
+        spriteDefinition.spriteSheet = spriteSheet;
+        return spriteDefinition;
+      });
+  }*/
+
+ 
+
+  return function(uri) {
+    return ImageResource(uri)
+      .ready(function(spriteSheetImage) {
+        return spriteSheetImage;
+      });
   }; 
 })

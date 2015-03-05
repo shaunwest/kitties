@@ -3,15 +3,31 @@
  *
  */
 
-register('SpriteSheet', ['ImageLoader'], function(ImageLoader) {
+register('SpriteSheetResource', ['ImageResource'], function(ImageResource) {
   'use strict';
 
-  return function(uri) {
-    return ImageLoader(uri)
+  /*function getSpriteSheet(baseUrl, spriteDefinition) {
+    if(!spriteDefinition.spriteSheetUrl) {
+      return null;
+    }
+
+    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
+      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
+    }
+
+    return SpriteSheet(spriteDefinition.spriteSheetUrl)
       .then(function(spriteSheet) {
-        return spriteSheet;
-      }, function() {
-        Util.warn('sprite sheet not found at ' + uri);
-      }); 
+        spriteDefinition.spriteSheet = spriteSheet;
+        return spriteDefinition;
+      });
+  }*/
+
+ 
+
+  return function(uri) {
+    return ImageResource(uri)
+      .ready(function(spriteSheetImage) {
+        return spriteSheetImage;
+      });
   }; 
 })
