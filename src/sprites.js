@@ -1,17 +1,27 @@
+/**
+ * Created by Shaun on 3/7/15
+ *
+ */
 
-
-register('Sprites', ['Resource', 'HttpResource', 'SpriteResource', 'SpriteAnimation'],
-  function(Resource, HttpResource, SpriteResource, SpriteAnimation) {
+register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimation'],
+  function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
   return function (spritesData, baseUrl) {
     var resourcePool = Resource();
 
     spritesData.forEach(function(spriteData) {
-      return HttpResource('assets/' + spriteData.src)
+      //FIXME: hardcoded path
+      //return HttpResource('assets/' + spriteData.src)
+      return HttpResource(spriteData.src)
         .ready(function(spriteDefinition) {
-          var spriteResource = SpriteResource(spriteDefinition, baseUrl)
+          var spriteResource = Sprite(spriteDefinition, baseUrl)
             .ready(function(sprite) {
+              sprite = Obj.clone(sprite);
+              sprite.x = spriteData.x;
+              sprite.y = spriteData.y;
+              sprite.width = spriteData.width;
+              sprite.height = spriteData.height;
               sprite.animation = SpriteAnimation(sprite.frameSet)
                 .play('run');
 
@@ -23,11 +33,5 @@ register('Sprites', ['Resource', 'HttpResource', 'SpriteResource', 'SpriteAnimat
     });
 
     return resourcePool;
-    /*return HttpResource(spriteData)
-      .ready(function(spriteDefinition) {
-        var sprite = Merge(spriteData);
-        sprite.definition = spriteDefinition;
-        return sprite;
-      });*/
   };
 });

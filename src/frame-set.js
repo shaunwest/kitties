@@ -6,6 +6,8 @@
 register('FrameSet', ['Common', 'Func'], function(Common, Func) {
   'use strict';
 
+  var DEFAULT_RATE = 5;
+
   function buildFrameSequence(frameSetDefinition, frameSize, spriteSheet) {
     var frameWidth = frameSize.width;
     var frameHeight = frameSize.height;

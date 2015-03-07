@@ -27,6 +27,7 @@
       'Util',
       'HttpResource',
       'ImageResource',
+      'Resource',
       'Sprites',
       'EntityLayer',
       'BackgroundLayer',
@@ -41,6 +42,7 @@
       Util,
       HttpResource,
       ImageResource,
+      Resource,
       Sprites,
       EntityLayer, 
       BackgroundLayer, 
@@ -82,25 +84,22 @@
 
 
       // DATA STUFF
-
-      // Get scene
-      var sceneUri = 'assets/kitty-world.json';
-      var baseUri = Common.getBaseUrl(sceneUri);
+      var sceneUri = 'kitty-world.json';
+      var baseUri = 'assets'; //Common.getBaseUrl(sceneUri);
+      Resource.baseUri = baseUri;
 
       HttpResource(sceneUri).ready(function(sceneData) {
-        sceneData.baseUrl = baseUri;
-
-        ImageResource(baseUri + '/' + sceneData.layerDefinitions.background.backgroundUrl)
+        ImageResource(sceneData.layerDefinitions.background.backgroundUrl)
           .ready(function (background) {
             backgroundLayer.setBackground(background);
           });
 
         entityLayer.clear();
-        Sprites(sceneData.layerDefinitions.entities.sprites, baseUri).ready(function (sprite) {
+        Sprites(sceneData.layerDefinitions.entities.sprites).ready(function (sprite) {
           entityLayer.addEntity(sprite);
         });
 
-        //collisionLayer.setColliders(scene.getCollisions().colliders);
+        collisionLayer.setColliders(sceneData.layerDefinitions.collisions.colliders);
       });
 
     });

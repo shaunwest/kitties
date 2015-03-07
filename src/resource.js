@@ -3,20 +3,14 @@
  *
  */
 
-register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, ResourceRegistry, Obj) {
+register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, ResourceRegistry, Common) {
   'use strict';
 
   function Resource (uri, method) {
     var successCallbacks = [],
       errorCallbacks = [],
-      currentIndex = 0;
-
-    var resource = {
-      ready: ready,
-      fetch: fetch,
-      add: add,
-      uri: uri
-    };
+      currentIndex = 0,
+      resource;
 
     // could be a little wonky
     function add(resource) {
@@ -76,13 +70,27 @@ register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, Resourc
       return promise.then(onSuccess, onError);
     }
 
+    resource = {
+      ready: ready,
+      fetch: fetch,
+      add: add
+    };
+
     if(Util.isFunction(method) && uri) {
+      if(!Common.isFullUrl(uri) && Resource.baseUri) {
+        uri = Resource.baseUri + '/' + uri;
+      }
+
+      resource.uri = uri;
       ResourceRegistry.register(resource);
+
       fetch();
     }
 
     return resource;
   }
+
+  Resource.baseUri = '';
 
   return Resource;
 });

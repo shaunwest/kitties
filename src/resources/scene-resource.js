@@ -11,7 +11,7 @@ register('SceneResource',
   ],
 function(HttpResource, Common, Obj) {
   'use strict';
-
+  // UP FOR REMOVAL!!
   return function(uri) {
     var baseUrl = Common.getBaseUrl(uri);
 

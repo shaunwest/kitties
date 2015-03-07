@@ -1602,6 +1602,8 @@ register('Common', function() {
 register('FrameSet', ['Common', 'Func'], function(Common, Func) {
   'use strict';
 
+  var DEFAULT_RATE = 5;
+
   function buildFrameSequence(frameSetDefinition, frameSize, spriteSheet) {
     var frameWidth = frameSize.width;
     var frameHeight = frameSize.height;
@@ -1720,20 +1722,14 @@ register('ResourceRegistry', [], function() {
  *
  */
 
-register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, ResourceRegistry, Obj) {
+register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, ResourceRegistry, Common) {
   'use strict';
 
   function Resource (uri, method) {
     var successCallbacks = [],
       errorCallbacks = [],
-      currentIndex = 0;
-
-    var resource = {
-      ready: ready,
-      fetch: fetch,
-      add: add,
-      uri: uri
-    };
+      currentIndex = 0,
+      resource;
 
     // could be a little wonky
     function add(resource) {
@@ -1793,13 +1789,27 @@ register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, Resourc
       return promise.then(onSuccess, onError);
     }
 
+    resource = {
+      ready: ready,
+      fetch: fetch,
+      add: add
+    };
+
     if(Util.isFunction(method) && uri) {
+      if(!Common.isFullUrl(uri) && Resource.baseUri) {
+        uri = Resource.baseUri + '/' + uri;
+      }
+
+      resource.uri = uri;
       ResourceRegistry.register(resource);
+
       fetch();
     }
 
     return resource;
   }
+
+  Resource.baseUri = '';
 
   return Resource;
 });
@@ -1817,7 +1827,7 @@ register('SceneFactory', [
   ], 
 function(Resource, Common, Sprite, ImageResource, SpriteAnimation) {
   'use strict';
-
+  // Up for removal!!!
   // REMINDER: resources need caching
 
   return function(sceneData) {
@@ -2053,35 +2063,62 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
     };
   }
 });
+/**
+ * Created by Shaun on 5/31/14.
+ *
+ */
 
-
-register('Sprite', ['Merge', 'SpriteResource'], function(Merge, SpriteResource) {
+register('Sprite', [
+  'HttpResource',
+  'Merge',
+  'ImageResource',
+  'FrameSet',
+  'Common'
+],
+function(HttpResource, Merge, ImageResource, FrameSet, Common) {
   'use strict';
 
-  return function (spriteData, baseUrl) {
-    //return SpriteResource(spriteData.src, baseUrl)
-    return SpriteResource(spriteData)
-      .ready(function(spriteDefinition) {
-        var sprite = Merge(spriteData);
-        sprite.definition = spriteDefinition;
-        return sprite;
+  return function (spriteDefinition, baseUrl) {
+    var spriteSheetUri;
+
+    spriteDefinition = Merge(spriteDefinition);
+    /*spriteSheetUri = spriteDefinition.spriteSheetUrl;
+
+    if(!Common.isFullUrl(spriteSheetUri)) {
+      spriteSheetUri = baseUrl + '/' + spriteSheetUri;
+    }*/
+
+    return ImageResource(spriteDefinition.spriteSheetUrl)
+      .ready(function(spriteSheet) {
+        spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
+        return spriteDefinition;
       });
   };
 });
+/**
+ * Created by Shaun on 3/7/15
+ *
+ */
 
-
-register('Sprites', ['Resource', 'HttpResource', 'SpriteResource', 'SpriteAnimation'],
-  function(Resource, HttpResource, SpriteResource, SpriteAnimation) {
+register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimation'],
+  function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
   return function (spritesData, baseUrl) {
     var resourcePool = Resource();
 
     spritesData.forEach(function(spriteData) {
-      return HttpResource('assets/' + spriteData.src)
+      //FIXME: hardcoded path
+      //return HttpResource('assets/' + spriteData.src)
+      return HttpResource(spriteData.src)
         .ready(function(spriteDefinition) {
-          var spriteResource = SpriteResource(spriteDefinition, baseUrl)
+          var spriteResource = Sprite(spriteDefinition, baseUrl)
             .ready(function(sprite) {
+              sprite = Obj.clone(sprite);
+              sprite.x = spriteData.x;
+              sprite.y = spriteData.y;
+              sprite.width = spriteData.width;
+              sprite.height = spriteData.height;
               sprite.animation = SpriteAnimation(sprite.frameSet)
                 .play('run');
 
@@ -2093,12 +2130,6 @@ register('Sprites', ['Resource', 'HttpResource', 'SpriteResource', 'SpriteAnimat
     });
 
     return resourcePool;
-    /*return HttpResource(spriteData)
-      .ready(function(spriteDefinition) {
-        var sprite = Merge(spriteData);
-        sprite.definition = spriteDefinition;
-        return sprite;
-      });*/
   };
 });
 /**
@@ -2298,7 +2329,7 @@ register('SceneResource',
   ],
 function(HttpResource, Common, Obj) {
   'use strict';
-
+  // UP FOR REMOVAL!!
   return function(uri) {
     var baseUrl = Common.getBaseUrl(uri);
 
@@ -2313,61 +2344,4 @@ function(HttpResource, Common, Obj) {
         });
       });
   };
-});
-/**
- * Created by Shaun on 5/31/14.
- *
- */
-
-/*
-* These aren't really resources. They just build definitions or other assets into actual
-* game objects. 
-*/
-register('SpriteResource', [
-  'HttpResource',
-  'Merge',
-  'ImageResource',
-  'FrameSet',
-  'Common'
-],
-function(HttpResource, Merge, ImageResource, FrameSet, Common) {
-  'use strict';
-
-  var DEFAULT_RATE = 5;
-
-  //return function (uri, baseUrl) {
-  return function (spriteDefinition, baseUrl) {
-    var fullSpriteDefinitionUrl;
-
-    function buildSpriteDefinition(spriteDefinition) {
-      var spriteSheetUri;
-
-      spriteDefinition = Merge(spriteDefinition);
-      spriteSheetUri = spriteDefinition.spriteSheetUrl;
-
-      if(!Common.isFullUrl(spriteSheetUri)) {
-        spriteSheetUri = baseUrl + '/' + spriteSheetUri;
-      }
-
-      return ImageResource(spriteSheetUri)
-        .ready(function(spriteSheet) {
-          spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
-          return spriteDefinition;
-        });
-    }
-
-    //baseUrl = spriteDefinition.baseUrl;
-
-    /*if(spriteDefinition.src) {
-      fullSpriteDefinitionUrl = Common.normalizeUrl(
-        spriteDefinition.src, 
-        baseUrl
-      );
-
-      return HttpResource(fullSpriteDefinitionUrl)
-        .ready(buildSpriteDefinition);
-    }*/
-
-    return buildSpriteDefinition(spriteDefinition);
-  }; 
 });

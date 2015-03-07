@@ -12,7 +12,7 @@ register('SceneFactory', [
   ], 
 function(Resource, Common, Sprite, ImageResource, SpriteAnimation) {
   'use strict';
-
+  // Up for removal!!!
   // REMINDER: resources need caching
 
   return function(sceneData) {
