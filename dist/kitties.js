@@ -1647,23 +1647,6 @@ register('FrameSet', ['Common', 'Func'], function(Common, Func) {
   };
 });
 /**
- * Created by Shaun on 3/1/15
- *
- */
-
-register('HttpResource', ['Util', 'Http', 'Resource'], function(Util, Http, Resource) {
-  'use strict';
-
-  return function (uri) {
-    return Resource(uri, Http.get)
-      .ready(
-        function(response) {
-          return response.data;
-        }
-      );
-  };
-});
-/**
  * Created by Shaun on 5/1/14.
  */
 
@@ -1737,76 +1720,138 @@ register('ResourceRegistry', [], function() {
  *
  */
 
-register('Resource', ['Util', 'ResourceRegistry'], function(Util, ResourceRegistry) {
+register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, ResourceRegistry, Obj) {
   'use strict';
 
-  return function (uri, method) {
-    var successCallbacks = [], errorCallbacks = [];
+  function Resource (uri, method) {
+    var successCallbacks = [],
+      errorCallbacks = [],
+      currentIndex = 0;
+
     var resource = {
       ready: ready,
       fetch: fetch,
+      add: add,
       uri: uri
     };
 
-    function ready(onSuccess, onError) {
-      if(!onSuccess) {
-        Util.error('Resource: ready requires a success callback');
+    // could be a little wonky
+    function add(resource) {
+      if(!Util.isObject(resource) || !resource.ready) {
+        return;
       }
+
+      resource.ready(onSuccess, onError);
+    }
+
+    function ready(onSuccess, onError) {
       successCallbacks.push(onSuccess);
       errorCallbacks.push(onError);
 
-      return {
-        ready: ready
-      };
+      return resource;
     }
 
     function onSuccess(result) {
-      var successCallback = successCallbacks.shift();
+      var successCallback = successCallbacks[currentIndex++];
 
-      /*while(successCallback = successCallbacks.shift()) {
-        result = successCallback(result);
-      }*/
       if(successCallback) {
         result = successCallback(result);
         if(result && result.ready) {
           result.ready(function(result) {
             onSuccess(result);
           });
-        } else {
-          onSuccess(result);
+          return;
         }
+        onSuccess(result);
       }
     }
 
     function onError(result) {
-      var errorCallback;
+      var errorCallback = errorCallbacks[currentIndex++];
 
-      while(errorCallback = errorCallbacks.shift()) {
-        if(errorCallback) {
-          result = errorCallback(result);        
+      if(errorCallback) {
+        result = errorCallback(result);        
+        if(result && result.ready) {
+          result.ready(function(result) {
+            onError(result);
+          });
+          return;
         }
+        onError(result);
       }
-
-      return result;
     }
 
     function fetch() {
       var promise = method(uri);
+
       if(!Util.isObject(promise) || !promise.then) {
         Util.error('Provided resource method did not return a thenable object');
       }
+
+      currentIndex = 0;
+
       return promise.then(onSuccess, onError);
     }
 
-    if(!Util.isFunction(method)) {
-      Util.error('Provided resource method must be a function');
+    if(Util.isFunction(method) && uri) {
+      ResourceRegistry.register(resource);
+      fetch();
     }
 
-    ResourceRegistry.register(resource);
-
-    fetch();
-
     return resource;
+  }
+
+  return Resource;
+});
+/**
+ * Created by Shaun on 3/4/15
+ *
+ */
+
+register('SceneFactory', [
+    'Resource', 
+    'Common', 
+    'Sprite', 
+    'ImageResource',
+    'SpriteAnimation'
+  ], 
+function(Resource, Common, Sprite, ImageResource, SpriteAnimation) {
+  'use strict';
+
+  // REMINDER: resources need caching
+
+  return function(sceneData) {
+    var layerDefinitions = sceneData.layerDefinitions;
+
+    return {
+      getBackground: function () {
+        var data = layerDefinitions.background;
+        var fullUrl = Common.normalizeUrl(data.backgroundUrl, sceneData.baseUrl);
+
+        return ImageResource(fullUrl);
+      },
+      getEntities: function () {
+        var data = layerDefinitions.entities;
+        var resourcePool = Resource();
+
+        data.sprites.forEach(function(spriteData) {
+          var spriteResource = Sprite(spriteData, sceneData.baseUrl)
+            .ready(function(sprite) {
+              sprite.animation = SpriteAnimation(sprite.definition.frameSet)
+                .play('run');
+
+              return sprite;
+            });
+
+          resourcePool.add(spriteResource);
+        });
+
+        return resourcePool;
+      },
+      getCollisions: function() {
+        return layerDefinitions.collisions;
+      }
+    };
   };
 });
 /**
@@ -1954,7 +1999,7 @@ register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
 register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
-  return function (sprite) {
+  return function (frameSet) {
     var currentFrameSequence = null,
       currentFrameIndex = 0,
       currentFrame = null,
@@ -1982,7 +2027,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 
     return {
       play: function(frameSetId) {
-        currentFrameSequence = sprite.frameSet[frameSetId];
+        currentFrameSequence = frameSet[frameSetId];
         currentFrameIndex = 0;
         currentFrame = null;
         return this;
@@ -2014,12 +2059,46 @@ register('Sprite', ['Merge', 'SpriteResource'], function(Merge, SpriteResource) 
   'use strict';
 
   return function (spriteData, baseUrl) {
-    return SpriteResource(spriteData.src, baseUrl)
+    //return SpriteResource(spriteData.src, baseUrl)
+    return SpriteResource(spriteData)
       .ready(function(spriteDefinition) {
         var sprite = Merge(spriteData);
         sprite.definition = spriteDefinition;
         return sprite;
       });
+  };
+});
+
+
+register('Sprites', ['Resource', 'HttpResource', 'SpriteResource', 'SpriteAnimation'],
+  function(Resource, HttpResource, SpriteResource, SpriteAnimation) {
+  'use strict';
+
+  return function (spritesData, baseUrl) {
+    var resourcePool = Resource();
+
+    spritesData.forEach(function(spriteData) {
+      return HttpResource('assets/' + spriteData.src)
+        .ready(function(spriteDefinition) {
+          var spriteResource = SpriteResource(spriteDefinition, baseUrl)
+            .ready(function(sprite) {
+              sprite.animation = SpriteAnimation(sprite.frameSet)
+                .play('run');
+
+              return sprite;
+            });
+
+          resourcePool.add(spriteResource);
+        });
+    });
+
+    return resourcePool;
+    /*return HttpResource(spriteData)
+      .ready(function(spriteDefinition) {
+        var sprite = Merge(spriteData);
+        sprite.definition = spriteDefinition;
+        return sprite;
+      });*/
   };
 });
 /**
@@ -2080,6 +2159,7 @@ register('CollisionLayer', ['Common'], function(Common) {
     var context2d = canvas.getContext('2d'); 
 
     return {
+      // FIXME: change it to addEntity or something
       setEntities: function(value) {
         entities = value;
       },
@@ -2139,6 +2219,9 @@ register('EntityLayer', ['Common'], function(Common) {
         entities.push(entity);
         return this;
       },
+      clear: function() {
+        entities.length = 0;
+      },
       draw: function(viewport) {
         var entity, image;
 
@@ -2174,6 +2257,23 @@ register('EntityLayer', ['Common'], function(Common) {
   }
 });
 /**
+ * Created by Shaun on 3/1/15
+ *
+ */
+
+register('HttpResource', ['Util', 'Http', 'Resource'], function(Util, Http, Resource) {
+  'use strict';
+
+  return function (uri) {
+    return Resource(uri, Http.get)
+      .ready(
+        function(response) {
+          return response.data;
+        }
+      );
+  };
+});
+/**
  * Created by Shaun on 1/25/15
  *
  */
@@ -2190,7 +2290,7 @@ register('ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Res
  *
  */
 
-register('SceneResource', 
+register('SceneResource',
   [
     'HttpResource',
     'Common',
@@ -2219,166 +2319,55 @@ function(HttpResource, Common, Obj) {
  *
  */
 
+/*
+* These aren't really resources. They just build definitions or other assets into actual
+* game objects. 
+*/
 register('SpriteResource', [
-  'Util',
   'HttpResource',
   'Merge',
   'ImageResource',
   'FrameSet',
-  'Common',
-  'Func'
+  'Common'
 ],
-function(Util, HttpResource, Merge, ImageResource, FrameSet, Common, Func) {
+function(HttpResource, Merge, ImageResource, FrameSet, Common) {
   'use strict';
 
   var DEFAULT_RATE = 5;
 
-  /*function getSpriteDefinition(response) {
-    var spriteDefinition = Merge(response.data, {
-      frameWidth: 48,
-      frameHeight: 48
-    });
+  //return function (uri, baseUrl) {
+  return function (spriteDefinition, baseUrl) {
+    var fullSpriteDefinitionUrl;
 
-    return spriteDefinition;
-  }*/
+    function buildSpriteDefinition(spriteDefinition) {
+      var spriteSheetUri;
 
-  // Download a spriteDefinition sheet
-  /*function getSpriteSheet(baseUrl, spriteDefinition) {
-    if(!spriteDefinition.spriteSheetUrl) {
-      return null;
+      spriteDefinition = Merge(spriteDefinition);
+      spriteSheetUri = spriteDefinition.spriteSheetUrl;
+
+      if(!Common.isFullUrl(spriteSheetUri)) {
+        spriteSheetUri = baseUrl + '/' + spriteSheetUri;
+      }
+
+      return ImageResource(spriteSheetUri)
+        .ready(function(spriteSheet) {
+          spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
+          return spriteDefinition;
+        });
     }
 
-    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
-      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
-    }
+    //baseUrl = spriteDefinition.baseUrl;
 
-    return SpriteSheet(spriteDefinition.spriteSheetUrl)
-      .then(function(spriteSheet) {
-        spriteDefinition.spriteSheet = spriteSheet;
-        return spriteDefinition;
-      });
-  }
+    /*if(spriteDefinition.src) {
+      fullSpriteDefinitionUrl = Common.normalizeUrl(
+        spriteDefinition.src, 
+        baseUrl
+      );
 
-  function setFrameSets(spriteDefinition) {
-    if(!spriteDefinition) {
-      return null;
-    }
+      return HttpResource(fullSpriteDefinitionUrl)
+        .ready(buildSpriteDefinition);
+    }*/
 
-    spriteDefinition.frameSets = Object
-      .keys(spriteDefinition.frameSetDefinitions)
-      .reduce(function(frameSets, frameSetId) {
-        var frameSet = buildFrameSet(
-          spriteDefinition.frameSetDefinitions[frameSetId], 
-          spriteDefinition
-        );
-
-        frameSet.frames = frameSet.frames
-          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
-
-        frameSets[frameSetId] = frameSet;
-
-        return frameSets;
-      }, {});
-
-    return spriteDefinition;
-  }
-
-  // Returns a sequence of frame images given a frame set definition and a sprite sheet
-  function buildFrameSet(frameSetDefinition, spriteDefinition) {
-    var frameWidth = spriteDefinition.frameWidth;
-    var frameHeight = spriteDefinition.frameHeight;
-
-    return {
-      rate: frameSetDefinition.rate || DEFAULT_RATE,
-      frames: frameSetDefinition.frames
-        .map(function(frameDefinition) {
-          var frame = Common.getCanvas(frameWidth, frameHeight);
-
-          frame
-            .getContext('2d')
-            .drawImage(
-              spriteDefinition.spriteSheet,
-              frameDefinition.x, frameDefinition.y,
-              frameWidth, frameHeight,
-              0, 0,
-              frameWidth, frameHeight
-            );
-
-          return frame;
-        })
-    };
-  }*/
-
-  // Main function. Gets sprite data and calls support functions to build frames.
-  return function (uri, baseUrl) {
-    var fullSpriteDefinitionUrl = Common.normalizeUrl(uri, baseUrl);
-
-    return HttpResource(fullSpriteDefinitionUrl)
-      .ready(function(spriteDefinition) {
-        var spriteSheetUri;
-
-        spriteDefinition = Merge(spriteDefinition);
-        spriteSheetUri = spriteDefinition.spriteSheetUrl;
-
-        if(!Common.isFullUrl(spriteSheetUri)) {
-          spriteSheetUri = baseUrl + '/' + spriteSheetUri;
-        }
-
-        return ImageResource(spriteSheetUri)
-          .ready(function(spriteSheet) {
-            spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
-            return spriteDefinition;
-          });
-
-        //return spriteDefinition;
-      });
-
-    /*return Http.get(fullSpriteDefinitionUrl)
-      .then(getSpriteDefinition, function(response) {
-        Util.warn('Error loading sprite at \'' + fullSpriteDefinitionUrl + '\'');
-      })
-      .then(Func.partial(getSpriteSheet, baseUrl))
-      .then(setFrameSets)
-      .then(function(spriteDefinition) {
-        if(spriteDefinition) {
-          spriteDefinition.url = fullSpriteDefinitionUrl;
-        }
-        return spriteDefinition;
-      }, function() {
-        return null;
-      });*/
+    return buildSpriteDefinition(spriteDefinition);
   }; 
 });
-/**
- * Created by Shaun on 3/1/15
- *
- */
-
-register('SpriteSheetResource', ['ImageResource'], function(ImageResource) {
-  'use strict';
-
-  /*function getSpriteSheet(baseUrl, spriteDefinition) {
-    if(!spriteDefinition.spriteSheetUrl) {
-      return null;
-    }
-
-    if(!Common.isFullUrl(spriteDefinition.spriteSheetUrl)) {
-      spriteDefinition.spriteSheetUrl = baseUrl + '/' + spriteDefinition.spriteSheetUrl;
-    }
-
-    return SpriteSheet(spriteDefinition.spriteSheetUrl)
-      .then(function(spriteSheet) {
-        spriteDefinition.spriteSheet = spriteSheet;
-        return spriteDefinition;
-      });
-  }*/
-
- 
-
-  return function(uri) {
-    return ImageResource(uri)
-      .ready(function(spriteSheetImage) {
-        return spriteSheetImage;
-      });
-  }; 
-})

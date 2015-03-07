@@ -3,75 +3,86 @@
  *
  */
 
-register('Resource', ['Util', 'ResourceRegistry'], function(Util, ResourceRegistry) {
+register('Resource', ['Util', 'ResourceRegistry', 'Obj'], function(Util, ResourceRegistry, Obj) {
   'use strict';
 
-  return function (uri, method) {
-    var successCallbacks = [], errorCallbacks = [];
+  function Resource (uri, method) {
+    var successCallbacks = [],
+      errorCallbacks = [],
+      currentIndex = 0;
+
     var resource = {
       ready: ready,
       fetch: fetch,
+      add: add,
       uri: uri
     };
 
-    function ready(onSuccess, onError) {
-      if(!onSuccess) {
-        Util.error('Resource: ready requires a success callback');
+    // could be a little wonky
+    function add(resource) {
+      if(!Util.isObject(resource) || !resource.ready) {
+        return;
       }
+
+      resource.ready(onSuccess, onError);
+    }
+
+    function ready(onSuccess, onError) {
       successCallbacks.push(onSuccess);
       errorCallbacks.push(onError);
 
-      return {
-        ready: ready
-      };
+      return resource;
     }
 
     function onSuccess(result) {
-      var successCallback = successCallbacks.shift();
+      var successCallback = successCallbacks[currentIndex++];
 
-      /*while(successCallback = successCallbacks.shift()) {
-        result = successCallback(result);
-      }*/
       if(successCallback) {
         result = successCallback(result);
         if(result && result.ready) {
           result.ready(function(result) {
             onSuccess(result);
           });
-        } else {
-          onSuccess(result);
+          return;
         }
+        onSuccess(result);
       }
     }
 
     function onError(result) {
-      var errorCallback;
+      var errorCallback = errorCallbacks[currentIndex++];
 
-      while(errorCallback = errorCallbacks.shift()) {
-        if(errorCallback) {
-          result = errorCallback(result);        
+      if(errorCallback) {
+        result = errorCallback(result);        
+        if(result && result.ready) {
+          result.ready(function(result) {
+            onError(result);
+          });
+          return;
         }
+        onError(result);
       }
-
-      return result;
     }
 
     function fetch() {
       var promise = method(uri);
+
       if(!Util.isObject(promise) || !promise.then) {
         Util.error('Provided resource method did not return a thenable object');
       }
+
+      currentIndex = 0;
+
       return promise.then(onSuccess, onError);
     }
 
-    if(!Util.isFunction(method)) {
-      Util.error('Provided resource method must be a function');
+    if(Util.isFunction(method) && uri) {
+      ResourceRegistry.register(resource);
+      fetch();
     }
 
-    ResourceRegistry.register(resource);
-
-    fetch();
-
     return resource;
-  };
+  }
+
+  return Resource;
 });

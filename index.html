@@ -16,33 +16,42 @@
   </div>
   <script src="dist/kitties.js"></script>
   <script>
+    /* NOTES:
+     *  This framework is RDV (Resource-Data-View) ??
+     * 
+     */
+
+    var resource;
+
     use([
       'Util',
-      'Sprite', 
-      'SceneResource',
-      'SpriteAnimation',
+      'HttpResource',
+      'ImageResource',
+      'Sprites',
       'EntityLayer',
       'BackgroundLayer',
       'CollisionLayer',
       'Scheduler', 
-      'ImageLoader',
-      'ImageResource',
       'Common',
       'canvas-background',
       'canvas-entities',
-      'canvas-colliders',
+      'canvas-colliders'
       ],
-    function(Util, Sprite, SceneResource, SpriteAnimation, EntityLayer, BackgroundLayer, CollisionLayer, Scheduler, ImageLoader, ImageResource, Common, canvasBackground, canvasEntities, canvasColliders) {
+    function(
+      Util,
+      HttpResource,
+      ImageResource,
+      Sprites,
+      EntityLayer, 
+      BackgroundLayer, 
+      CollisionLayer, 
+      Scheduler, 
+      Common, 
+      canvasBackground, 
+      canvasEntities, 
+      canvasColliders
+      ) {
       'use strict';
-
-      function makeLayers(layerDefinitions, actions) {
-        Object.keys(layerDefinitions).forEach(function(actionName) {
-          var action = actions[actionName];
-          if(Util.isFunction(action)) {
-            action(layerDefinitions[actionName]);
-          }
-        });
-      }
 
       var viewport = {
         x: 0,
@@ -51,56 +60,49 @@
         height: 400
       };       
 
-      var entities = [];
+      // VIEW STUFF
 
       // Setup background layer
       var backgroundLayer = BackgroundLayer(canvasBackground);
-      Scheduler(function() {
+      Scheduler(function () {
         backgroundLayer.draw(viewport);
       });
 
       // Setup entity layer
       var entityLayer = EntityLayer(canvasEntities);
-      Scheduler(function() {
+      Scheduler(function () {
         entityLayer.draw(viewport);
       });
 
       // Setup collision debug layer
       var collisionLayer = CollisionLayer(canvasColliders);
-      Scheduler(function() {
+      Scheduler(function () {
         collisionLayer.draw(viewport);
       });
 
+
+      // DATA STUFF
+
       // Get scene
-      SceneResource('assets/kitty-world.json')
-        .ready(function(scene) {
-          makeLayers(scene.layerDefinitions, { 
-            background: function (data) {
-              var fullUrl = Common.normalizeUrl(data.backgroundUrl, scene.baseUrl);
-              ImageResource(fullUrl)
-                .ready(function(image) {
-                  backgroundLayer.setBackground(image);
-                });
-            },
-            entities: function (data) {
-              data.sprites.forEach(function(spriteData) {
-                Sprite(spriteData, scene.baseUrl)
-                  .ready(function(sprite) {
-                    sprite.animation = SpriteAnimation(sprite.definition)
-                      .play('run');
+      var sceneUri = 'assets/kitty-world.json';
+      var baseUri = Common.getBaseUrl(sceneUri);
 
-                    entityLayer.addEntity(sprite);
-                    entities.push(sprite);
-                  });
-              });
+      HttpResource(sceneUri).ready(function(sceneData) {
+        sceneData.baseUrl = baseUri;
 
-              collisionLayer.setEntities(entities);
-            },
-            collisions: function(data) {
-              collisionLayer.setColliders(data.colliders);
-            }
+        ImageResource(baseUri + '/' + sceneData.layerDefinitions.background.backgroundUrl)
+          .ready(function (background) {
+            backgroundLayer.setBackground(background);
           });
+
+        entityLayer.clear();
+        Sprites(sceneData.layerDefinitions.entities.sprites, baseUri).ready(function (sprite) {
+          entityLayer.addEntity(sprite);
+        });
+
+        //collisionLayer.setColliders(scene.getCollisions().colliders);
       });
+
     });
   </script>
 </body>

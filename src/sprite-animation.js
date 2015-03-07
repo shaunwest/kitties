@@ -1,7 +1,7 @@
 register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
   'use strict';
 
-  return function (sprite) {
+  return function (frameSet) {
     var currentFrameSequence = null,
       currentFrameIndex = 0,
       currentFrame = null,
@@ -29,7 +29,7 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
 
     return {
       play: function(frameSetId) {
-        currentFrameSequence = sprite.frameSet[frameSetId];
+        currentFrameSequence = frameSet[frameSetId];
         currentFrameIndex = 0;
         currentFrame = null;
         return this;

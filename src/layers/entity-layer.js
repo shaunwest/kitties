@@ -15,6 +15,9 @@ register('EntityLayer', ['Common'], function(Common) {
         entities.push(entity);
         return this;
       },
+      clear: function() {
+        entities.length = 0;
+      },
       draw: function(viewport) {
         var entity, image;
 

@@ -3,7 +3,7 @@
  *
  */
 
-register('SceneResource', 
+register('SceneResource',
   [
     'HttpResource',
     'Common',

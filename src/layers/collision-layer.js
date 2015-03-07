@@ -14,6 +14,7 @@ register('CollisionLayer', ['Common'], function(Common) {
     var context2d = canvas.getContext('2d'); 
 
     return {
+      // FIXME: change it to addEntity or something
       setEntities: function(value) {
         entities = value;
       },
