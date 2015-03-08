@@ -7,31 +7,34 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
-  return function (spritesData, baseUrl) {
-    var resourcePool = Resource();
+  /*return function (spritesData) {
+    //spritesData
+      //.forEach(function (spriteData) {
+        return HttpResource(spritesData[0].src)
+          .ready(Sprite).ready(function (sprite) {
+            sprite = Obj.merge(spritesData[0], sprite);
+            sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-    spritesData.forEach(function(spriteData) {
-      //FIXME: hardcoded path
-      //return HttpResource('assets/' + spriteData.src)
-      return HttpResource(spriteData.src)
-        .ready(function(spriteDefinition) {
-          var spriteResource = Sprite(spriteDefinition, baseUrl)
-            .ready(function(sprite) {
-              sprite = Obj.clone(sprite);
-              sprite.x = spriteData.x;
-              sprite.y = spriteData.y;
-              sprite.width = spriteData.width;
-              sprite.height = spriteData.height;
-              sprite.animation = SpriteAnimation(sprite.frameSet)
-                .play('run');
+            return sprite;
+          });
+      //});
+  };*/
 
-              return sprite;
-            });
+  return function (spritesData) {
+    return spritesData
+      .reduce(function (resourcePool, spriteData) {
+        HttpResource(spriteData.src)
+          .ready(function (spriteDefinition) {
+            resourcePool.add(Sprite(spriteDefinition)
+              .ready(function (sprite) {
+                sprite = Obj.merge(spriteData, sprite);
+                sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-          resourcePool.add(spriteResource);
-        });
-    });
+                return sprite;
+              }));
+          });
 
-    return resourcePool;
+        return resourcePool;
+      }, Resource());
   };
 });

@@ -32,6 +32,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       var successCallback = successCallbacks[currentIndex++];
 
       if(successCallback) {
+        resource.result = result;
         result = successCallback(result);
         if(result && result.ready) {
           result.ready(function(result) {
@@ -47,6 +48,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       var errorCallback = errorCallbacks[currentIndex++];
 
       if(errorCallback) {
+        resource.result = result;
         result = errorCallback(result);        
         if(result && result.ready) {
           result.ready(function(result) {
@@ -66,6 +68,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       }
 
       currentIndex = 0;
+      resource.promise = promise;
 
       return promise.then(onSuccess, onError);
     }
@@ -73,7 +76,10 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     resource = {
       ready: ready,
       fetch: fetch,
-      add: add
+      add: add,
+      result: null,
+      promise: null,
+      uri: ''
     };
 
     if(Util.isFunction(method) && uri) {

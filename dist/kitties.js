@@ -1751,6 +1751,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       var successCallback = successCallbacks[currentIndex++];
 
       if(successCallback) {
+        resource.result = result;
         result = successCallback(result);
         if(result && result.ready) {
           result.ready(function(result) {
@@ -1766,6 +1767,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       var errorCallback = errorCallbacks[currentIndex++];
 
       if(errorCallback) {
+        resource.result = result;
         result = errorCallback(result);        
         if(result && result.ready) {
           result.ready(function(result) {
@@ -1785,6 +1787,7 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
       }
 
       currentIndex = 0;
+      resource.promise = promise;
 
       return promise.then(onSuccess, onError);
     }
@@ -1792,7 +1795,10 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     resource = {
       ready: ready,
       fetch: fetch,
-      add: add
+      add: add,
+      result: null,
+      promise: null,
+      uri: ''
     };
 
     if(Util.isFunction(method) && uri) {
@@ -1812,57 +1818,6 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
   Resource.baseUri = '';
 
   return Resource;
-});
-/**
- * Created by Shaun on 3/4/15
- *
- */
-
-register('SceneFactory', [
-    'Resource', 
-    'Common', 
-    'Sprite', 
-    'ImageResource',
-    'SpriteAnimation'
-  ], 
-function(Resource, Common, Sprite, ImageResource, SpriteAnimation) {
-  'use strict';
-  // Up for removal!!!
-  // REMINDER: resources need caching
-
-  return function(sceneData) {
-    var layerDefinitions = sceneData.layerDefinitions;
-
-    return {
-      getBackground: function () {
-        var data = layerDefinitions.background;
-        var fullUrl = Common.normalizeUrl(data.backgroundUrl, sceneData.baseUrl);
-
-        return ImageResource(fullUrl);
-      },
-      getEntities: function () {
-        var data = layerDefinitions.entities;
-        var resourcePool = Resource();
-
-        data.sprites.forEach(function(spriteData) {
-          var spriteResource = Sprite(spriteData, sceneData.baseUrl)
-            .ready(function(sprite) {
-              sprite.animation = SpriteAnimation(sprite.definition.frameSet)
-                .play('run');
-
-              return sprite;
-            });
-
-          resourcePool.add(spriteResource);
-        });
-
-        return resourcePool;
-      },
-      getCollisions: function() {
-        return layerDefinitions.collisions;
-      }
-    };
-  };
 });
 /**
  * Created by Shaun on 2/1/15
@@ -2069,29 +2024,21 @@ register('SpriteAnimation', ['Scheduler', 'Obj'], function(Scheduler, Obj) {
  */
 
 register('Sprite', [
-  'HttpResource',
-  'Merge',
+  'Obj',
   'ImageResource',
-  'FrameSet',
-  'Common'
+  'FrameSet'
 ],
-function(HttpResource, Merge, ImageResource, FrameSet, Common) {
+function (Obj, ImageResource, FrameSet) {
   'use strict';
 
-  return function (spriteDefinition, baseUrl) {
-    var spriteSheetUri;
-
-    spriteDefinition = Merge(spriteDefinition);
-    /*spriteSheetUri = spriteDefinition.spriteSheetUrl;
-
-    if(!Common.isFullUrl(spriteSheetUri)) {
-      spriteSheetUri = baseUrl + '/' + spriteSheetUri;
-    }*/
-
+  return function (spriteDefinition) {
     return ImageResource(spriteDefinition.spriteSheetUrl)
-      .ready(function(spriteSheet) {
-        spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
-        return spriteDefinition;
+      .ready(function (spriteSheet) {
+        return {
+          spriteSheet: spriteSheet,
+          definition: spriteDefinition,
+          frameSet: FrameSet(spriteDefinition, spriteSheet)
+        };
       });
   };
 });
@@ -2104,32 +2051,35 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
-  return function (spritesData, baseUrl) {
-    var resourcePool = Resource();
+  /*return function (spritesData) {
+    //spritesData
+      //.forEach(function (spriteData) {
+        return HttpResource(spritesData[0].src)
+          .ready(Sprite).ready(function (sprite) {
+            sprite = Obj.merge(spritesData[0], sprite);
+            sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-    spritesData.forEach(function(spriteData) {
-      //FIXME: hardcoded path
-      //return HttpResource('assets/' + spriteData.src)
-      return HttpResource(spriteData.src)
-        .ready(function(spriteDefinition) {
-          var spriteResource = Sprite(spriteDefinition, baseUrl)
-            .ready(function(sprite) {
-              sprite = Obj.clone(sprite);
-              sprite.x = spriteData.x;
-              sprite.y = spriteData.y;
-              sprite.width = spriteData.width;
-              sprite.height = spriteData.height;
-              sprite.animation = SpriteAnimation(sprite.frameSet)
-                .play('run');
+            return sprite;
+          });
+      //});
+  };*/
 
-              return sprite;
-            });
+  return function (spritesData) {
+    return spritesData
+      .reduce(function (resourcePool, spriteData) {
+        HttpResource(spriteData.src)
+          .ready(function (spriteDefinition) {
+            resourcePool.add(Sprite(spriteDefinition)
+              .ready(function (sprite) {
+                sprite = Obj.merge(spriteData, sprite);
+                sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-          resourcePool.add(spriteResource);
-        });
-    });
+                return sprite;
+              }));
+          });
 
-    return resourcePool;
+        return resourcePool;
+      }, Resource());
   };
 });
 /**
@@ -2314,34 +2264,5 @@ register('ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Res
 
   return function (uri) {
     return Resource(uri, ImageLoader);
-  };
-});
-/**
- * Created by Shaun on 1/25/15
- *
- */
-
-register('SceneResource',
-  [
-    'HttpResource',
-    'Common',
-    'Obj'
-  ],
-function(HttpResource, Common, Obj) {
-  'use strict';
-  // UP FOR REMOVAL!!
-  return function(uri) {
-    var baseUrl = Common.getBaseUrl(uri);
-
-    return HttpResource(uri)
-      .ready(function(scene) {
-        return Obj.merge(scene, {
-          sceneWidth: 500,
-          sceneHeight: 500,
-          sceneDepth: 500,
-          url: uri,
-          baseUrl: baseUrl
-        });
-      });
   };
 });

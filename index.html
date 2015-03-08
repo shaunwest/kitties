@@ -22,12 +22,14 @@
      */
 
     var resource;
+    var refresh;
 
     use([
       'Util',
       'HttpResource',
       'ImageResource',
       'Resource',
+      'ResourceRegistry',
       'Sprites',
       'EntityLayer',
       'BackgroundLayer',
@@ -43,6 +45,7 @@
       HttpResource,
       ImageResource,
       Resource,
+      ResourceRegistry,
       Sprites,
       EntityLayer, 
       BackgroundLayer, 
@@ -61,6 +64,10 @@
         width: 600,
         height: 400
       };       
+
+      refresh = function() {
+        return ResourceRegistry.getResources('assets/kitty.json');
+      };
 
       // VIEW STUFF
 
@@ -85,23 +92,23 @@
 
       // DATA STUFF
       var sceneUri = 'kitty-world.json';
-      var baseUri = 'assets'; //Common.getBaseUrl(sceneUri);
-      Resource.baseUri = baseUri;
+      Resource.baseUri = 'assets';
 
       HttpResource(sceneUri).ready(function(sceneData) {
-        ImageResource(sceneData.layerDefinitions.background.backgroundUrl)
+        var layerDefinitions = sceneData.layerDefinitions;
+
+        ImageResource(layerDefinitions.background.backgroundUrl)
           .ready(function (background) {
             backgroundLayer.setBackground(background);
           });
 
         entityLayer.clear();
-        Sprites(sceneData.layerDefinitions.entities.sprites).ready(function (sprite) {
-          entityLayer.addEntity(sprite);
-        });
-
-        collisionLayer.setColliders(sceneData.layerDefinitions.collisions.colliders);
+        Sprites(layerDefinitions.entities.sprites)
+          .ready(function (sprite) {
+            entityLayer.addEntity(sprite);
+          });
+        collisionLayer.setColliders(layerDefinitions.collisions.colliders);
       });
-
     });
   </script>
 </body>

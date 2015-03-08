@@ -4,29 +4,21 @@
  */
 
 register('Sprite', [
-  'HttpResource',
-  'Merge',
+  'Obj',
   'ImageResource',
-  'FrameSet',
-  'Common'
+  'FrameSet'
 ],
-function(HttpResource, Merge, ImageResource, FrameSet, Common) {
+function (Obj, ImageResource, FrameSet) {
   'use strict';
 
-  return function (spriteDefinition, baseUrl) {
-    var spriteSheetUri;
-
-    spriteDefinition = Merge(spriteDefinition);
-    /*spriteSheetUri = spriteDefinition.spriteSheetUrl;
-
-    if(!Common.isFullUrl(spriteSheetUri)) {
-      spriteSheetUri = baseUrl + '/' + spriteSheetUri;
-    }*/
-
+  return function (spriteDefinition) {
     return ImageResource(spriteDefinition.spriteSheetUrl)
-      .ready(function(spriteSheet) {
-        spriteDefinition.frameSet = FrameSet(spriteDefinition, spriteSheet);
-        return spriteDefinition;
+      .ready(function (spriteSheet) {
+        return {
+          spriteSheet: spriteSheet,
+          definition: spriteDefinition,
+          frameSet: FrameSet(spriteDefinition, spriteSheet)
+        };
       });
   };
 });
