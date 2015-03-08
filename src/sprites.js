@@ -7,7 +7,7 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
-  /*return function (spritesData) {
+  return function (spritesData) {
     //spritesData
       //.forEach(function (spriteData) {
         return HttpResource(spritesData[0].src)
@@ -18,9 +18,9 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
             return sprite;
           });
       //});
-  };*/
+  };
 
-  return function (spritesData) {
+  /*return function (spritesData) {
     return spritesData
       .reduce(function (resourcePool, spriteData) {
         HttpResource(spriteData.src)
@@ -36,5 +36,5 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
 
         return resourcePool;
       }, Resource());
-  };
+  };*/
 });

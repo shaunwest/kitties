@@ -103,10 +103,12 @@
           });
 
         entityLayer.clear();
-        Sprites(layerDefinitions.entities.sprites)
+        resource = Sprites(layerDefinitions.entities.sprites)
           .ready(function (sprite) {
             entityLayer.addEntity(sprite);
-          });
+          }, function() { console.log('ERROR!!')});
+
+        console.log(resource);
         collisionLayer.setColliders(layerDefinitions.collisions.colliders);
       });
     });

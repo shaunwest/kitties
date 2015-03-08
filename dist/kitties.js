@@ -1725,94 +1725,109 @@ register('ResourceRegistry', [], function() {
 register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, ResourceRegistry, Common) {
   'use strict';
 
-  function Resource (uri, method) {
-    var successCallbacks = [],
-      errorCallbacks = [],
-      currentIndex = 0,
-      resource;
+  function Resource (sources, method) {
+    var resource;
 
-    // could be a little wonky
-    function add(resource) {
-      if(!Util.isObject(resource) || !resource.ready) {
-        return;
+    function makeResource (sources) {
+      var successCallbacks = [],
+        errorCallbacks = [],
+        resource = {
+          ready: ready,
+          fetch: fetch,
+          promise: null,
+          sources: sources
+        };
+
+      function ready (onSuccess, onError) {
+        successCallbacks.push(onSuccess);
+        errorCallbacks.push(onError);
+
+        return resource;
       }
 
-      resource.ready(onSuccess, onError);
-    }
+      function onSuccess (result, index) {
+        var successCallback = successCallbacks[index];
+        if(!successCallback) {
+          if(index < successCallbacks.length) { onError(result, index + 1); }
+          return;
+        }
 
-    function ready(onSuccess, onError) {
-      successCallbacks.push(onSuccess);
-      errorCallbacks.push(onError);
+        result = successCallback(result);
+        if(result && result.ready) {
+          result.ready(function (result) {
+            onSuccess(result, index + 1);
+          }, function (result) {
+            onError(result, index + 1);
+          });
+          return;
+        }
+        onSuccess(result, index + 1);
+      }
+
+      function onError(result, index) {
+        var errorCallback = errorCallbacks[index];
+        if(!errorCallback) {
+          if(index < errorCallbacks.length) { onError(result, index + 1); }
+          return;
+        }
+
+        result = errorCallback(result);
+        if(result && result.ready) {
+          result.ready(function() {
+            onSuccess(result, index + 1);
+          }, function(result) {
+            onError(result, index + 1);
+          });
+          return;
+        }
+        onError(result, index + 1);
+      }
+
+      function fetch () {
+        resource.promise = sources.map(function(source) {
+          var promise = method(source);
+
+          if(!Util.isObject(promise) || !promise.then) {
+            Util.error('Provided resource method did not return a thenable object');
+          }
+
+          return promise.then(
+            function(result) {
+              onSuccess(result, 0);
+            },
+            function(result) {
+              onError(result, 0);
+            }
+          );
+        });
+
+        return resource;
+      }
 
       return resource;
     }
 
-    function onSuccess(result) {
-      var successCallback = successCallbacks[currentIndex++];
+    if(!Util.isFunction(method) || !sources) {
+      return;
+    }
 
-      if(successCallback) {
-        resource.result = result;
-        result = successCallback(result);
-        if(result && result.ready) {
-          result.ready(function(result) {
-            onSuccess(result);
-          });
-          return;
+    if(!Util.isArray(sources)) {
+      sources = [sources];
+    }
+
+    if(Resource.baseUri) {
+      sources = sources.map(function(uri) {
+        if(!Common.isFullUrl(uri)) {
+          return Resource.baseUri + '/' + uri;
         }
-        onSuccess(result);
-      }
+        return uri;
+      });
     }
 
-    function onError(result) {
-      var errorCallback = errorCallbacks[currentIndex++];
+    resource = makeResource(sources);
+    ResourceRegistry.register(resource);
 
-      if(errorCallback) {
-        resource.result = result;
-        result = errorCallback(result);        
-        if(result && result.ready) {
-          result.ready(function(result) {
-            onError(result);
-          });
-          return;
-        }
-        onError(result);
-      }
-    }
-
-    function fetch() {
-      var promise = method(uri);
-
-      if(!Util.isObject(promise) || !promise.then) {
-        Util.error('Provided resource method did not return a thenable object');
-      }
-
-      currentIndex = 0;
-      resource.promise = promise;
-
-      return promise.then(onSuccess, onError);
-    }
-
-    resource = {
-      ready: ready,
-      fetch: fetch,
-      add: add,
-      result: null,
-      promise: null,
-      uri: ''
-    };
-
-    if(Util.isFunction(method) && uri) {
-      if(!Common.isFullUrl(uri) && Resource.baseUri) {
-        uri = Resource.baseUri + '/' + uri;
-      }
-
-      resource.uri = uri;
-      ResourceRegistry.register(resource);
-
-      fetch();
-    }
-
-    return resource;
+    return resource.fetch();
   }
 
   Resource.baseUri = '';
@@ -2051,7 +2066,7 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
-  /*return function (spritesData) {
+  return function (spritesData) {
     //spritesData
       //.forEach(function (spriteData) {
         return HttpResource(spritesData[0].src)
@@ -2062,9 +2077,9 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
             return sprite;
           });
       //});
-  };*/
+  };
 
-  return function (spritesData) {
+  /*return function (spritesData) {
     return spritesData
       .reduce(function (resourcePool, spriteData) {
         HttpResource(spriteData.src)
@@ -2080,7 +2095,7 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
 
         return resourcePool;
       }, Resource());
-  };
+  };*/
 });
 /**
  * Created by Shaun on 2/5/15
