@@ -7,83 +7,77 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
   'use strict';
 
   function Resource (sources, method) {
-    var resource;
+    var successCallbacks = [],
+      errorCallbacks = [],
+      resource = {
+        ready: ready,
+        fetch: fetch,
+        promise: null,
+        sources: sources
+      };
 
-    function makeResource (sources) {
-      var successCallbacks = [],
-        errorCallbacks = [],
-        resource = {
-          ready: ready,
-          fetch: fetch,
-          promise: null,
-          sources: sources
-        };
+    function ready (onSuccess, onError) {
+      successCallbacks.push(onSuccess);
+      errorCallbacks.push(onError);
 
-      function ready (onSuccess, onError) {
-        successCallbacks.push(onSuccess);
-        errorCallbacks.push(onError);
+      return resource;
+    }
 
-        return resource;
+    function onSuccess (result, index) {
+      var successCallback = successCallbacks[index];
+      if(!successCallback) {
+        if(index < successCallbacks.length) { onError(result, index + 1); }
+        return;
       }
 
-      function onSuccess (result, index) {
-        var successCallback = successCallbacks[index];
-        if(!successCallback) {
-          if(index < successCallbacks.length) { onError(result, index + 1); }
-          return;
-        }
-
-        result = successCallback(result);
-        if(result && result.ready) {
-          result.ready(function (result) {
-            onSuccess(result, index + 1);
-          }, function (result) {
-            onError(result, index + 1);
-          });
-          return;
-        }
-        onSuccess(result, index + 1);
-      }
-
-      function onError(result, index) {
-        var errorCallback = errorCallbacks[index];
-        if(!errorCallback) {
-          if(index < errorCallbacks.length) { onError(result, index + 1); }
-          return;
-        }
-
-        result = errorCallback(result);
-        if(result && result.ready) {
-          result.ready(function() {
-            onSuccess(result, index + 1);
-          }, function(result) {
-            onError(result, index + 1);
-          });
-          return;
-        }
-        onError(result, index + 1);
-      }
-
-      function fetch () {
-        resource.promise = sources.map(function(source) {
-          var promise = method(source);
-
-          if(!Util.isObject(promise) || !promise.then) {
-            Util.error('Provided resource method did not return a thenable object');
-          }
-
-          return promise.then(
-            function(result) {
-              onSuccess(result, 0);
-            },
-            function(result) {
-              onError(result, 0);
-            }
-          );
+      result = successCallback(result);
+      if(result && result.ready) {
+        result.ready(function (result) {
+          onSuccess(result, index + 1);
+        }, function (result) {
+          onError(result, index + 1);
         });
-
-        return resource;
+        return;
       }
+      onSuccess(result, index + 1);
+    }
+
+    function onError(result, index) {
+      var errorCallback = errorCallbacks[index];
+      if(!errorCallback) {
+        if(index < errorCallbacks.length) { onError(result, index + 1); }
+        return;
+      }
+
+      result = errorCallback(result);
+      if(result && result.ready) {
+        result.ready(function() {
+          onSuccess(result, index + 1);
+        }, function(result) {
+          onError(result, index + 1);
+        });
+        return;
+      }
+      onError(result, index + 1);
+    }
+
+    function fetch () {
+      resource.promise = sources.map(function(source, sourceIndex) {
+        var promise = method(source);
+
+        if(!Util.isObject(promise) || !promise.then) {
+          Util.error('Provided resource method did not return a thenable object');
+        }
+
+        return promise.then(
+          function(result) {
+            onSuccess(result, 0);
+          },
+          function(result) {
+            onError(result, 0);
+          }
+        );
+      });
 
       return resource;
     }
@@ -97,15 +91,14 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     }
 
     if(Resource.baseUri) {
-      sources = sources.map(function(uri) {
-        if(!Common.isFullUrl(uri)) {
-          return Resource.baseUri + '/' + uri;
+      sources = sources.map(function(source) {
+        if(!Common.isFullUrl(source)) {
+          return Resource.baseUri + '/' + source;
         }
-        return uri;
+        return source;
       });
     }
 
-    resource = makeResource(sources);
     ResourceRegistry.register(resource);
 
     return resource.fetch();

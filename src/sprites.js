@@ -8,33 +8,29 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   'use strict';
 
   return function (spritesData) {
-    //spritesData
-      //.forEach(function (spriteData) {
-        return HttpResource(spritesData[0].src)
-          .ready(Sprite).ready(function (sprite) {
-            sprite = Obj.merge(spritesData[0], sprite);
-            sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
+    var sources = spritesData.map(function (spriteData) {
+      return spriteData.src;
+    });
+    return HttpResource(sources)
+      .ready(Sprite).ready(function (sprite) {
+        sprite = Obj.merge(spritesData[0], sprite);
+        sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-            return sprite;
-          });
-      //});
+        return sprite;
+      });
   };
 
-  /*return function (spritesData) {
-    return spritesData
-      .reduce(function (resourcePool, spriteData) {
-        HttpResource(spriteData.src)
-          .ready(function (spriteDefinition) {
-            resourcePool.add(Sprite(spriteDefinition)
-              .ready(function (sprite) {
-                sprite = Obj.merge(spriteData, sprite);
-                sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
+    /*
+  // New proposal
+  return function (spritesData) {
+    return MultiResource(spritesData).each(function(spriteData) {
+      return HttpResource(spriteData.src)
+        .ready(Sprite).ready(function (sprite) {
+          sprite = Obj.merge(spritesData[0], sprite);
+          sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-                return sprite;
-              }));
-          });
-
-        return resourcePool;
-      }, Resource());
-  };*/
+          return sprite;
+        });
+    });
+  }*/
 });

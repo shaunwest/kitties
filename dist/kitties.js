@@ -1726,83 +1726,77 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
   'use strict';
 
   function Resource (sources, method) {
-    var resource;
+    var successCallbacks = [],
+      errorCallbacks = [],
+      resource = {
+        ready: ready,
+        fetch: fetch,
+        promise: null,
+        sources: sources
+      };
 
-    function makeResource (sources) {
-      var successCallbacks = [],
-        errorCallbacks = [],
-        resource = {
-          ready: ready,
-          fetch: fetch,
-          promise: null,
-          sources: sources
-        };
+    function ready (onSuccess, onError) {
+      successCallbacks.push(onSuccess);
+      errorCallbacks.push(onError);
 
-      function ready (onSuccess, onError) {
-        successCallbacks.push(onSuccess);
-        errorCallbacks.push(onError);
+      return resource;
+    }
 
-        return resource;
+    function onSuccess (result, index) {
+      var successCallback = successCallbacks[index];
+      if(!successCallback) {
+        if(index < successCallbacks.length) { onError(result, index + 1); }
+        return;
       }
 
-      function onSuccess (result, index) {
-        var successCallback = successCallbacks[index];
-        if(!successCallback) {
-          if(index < successCallbacks.length) { onError(result, index + 1); }
-          return;
-        }
-
-        result = successCallback(result);
-        if(result && result.ready) {
-          result.ready(function (result) {
-            onSuccess(result, index + 1);
-          }, function (result) {
-            onError(result, index + 1);
-          });
-          return;
-        }
-        onSuccess(result, index + 1);
-      }
-
-      function onError(result, index) {
-        var errorCallback = errorCallbacks[index];
-        if(!errorCallback) {
-          if(index < errorCallbacks.length) { onError(result, index + 1); }
-          return;
-        }
-
-        result = errorCallback(result);
-        if(result && result.ready) {
-          result.ready(function() {
-            onSuccess(result, index + 1);
-          }, function(result) {
-            onError(result, index + 1);
-          });
-          return;
-        }
-        onError(result, index + 1);
-      }
-
-      function fetch () {
-        resource.promise = sources.map(function(source) {
-          var promise = method(source);
-
-          if(!Util.isObject(promise) || !promise.then) {
-            Util.error('Provided resource method did not return a thenable object');
-          }
-
-          return promise.then(
-            function(result) {
-              onSuccess(result, 0);
-            },
-            function(result) {
-              onError(result, 0);
-            }
-          );
+      result = successCallback(result);
+      if(result && result.ready) {
+        result.ready(function (result) {
+          onSuccess(result, index + 1);
+        }, function (result) {
+          onError(result, index + 1);
         });
-
-        return resource;
+        return;
       }
+      onSuccess(result, index + 1);
+    }
+
+    function onError(result, index) {
+      var errorCallback = errorCallbacks[index];
+      if(!errorCallback) {
+        if(index < errorCallbacks.length) { onError(result, index + 1); }
+        return;
+      }
+
+      result = errorCallback(result);
+      if(result && result.ready) {
+        result.ready(function() {
+          onSuccess(result, index + 1);
+        }, function(result) {
+          onError(result, index + 1);
+        });
+        return;
+      }
+      onError(result, index + 1);
+    }
+
+    function fetch () {
+      resource.promise = sources.map(function(source, sourceIndex) {
+        var promise = method(source);
+
+        if(!Util.isObject(promise) || !promise.then) {
+          Util.error('Provided resource method did not return a thenable object');
+        }
+
+        return promise.then(
+          function(result) {
+            onSuccess(result, 0);
+          },
+          function(result) {
+            onError(result, 0);
+          }
+        );
+      });
 
       return resource;
     }
@@ -1816,15 +1810,14 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     }
 
     if(Resource.baseUri) {
-      sources = sources.map(function(uri) {
-        if(!Common.isFullUrl(uri)) {
-          return Resource.baseUri + '/' + uri;
+      sources = sources.map(function(source) {
+        if(!Common.isFullUrl(source)) {
+          return Resource.baseUri + '/' + source;
         }
-        return uri;
+        return source;
       });
     }
 
-    resource = makeResource(sources);
     ResourceRegistry.register(resource);
 
     return resource.fetch();
@@ -2067,35 +2060,31 @@ register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimati
   'use strict';
 
   return function (spritesData) {
-    //spritesData
-      //.forEach(function (spriteData) {
-        return HttpResource(spritesData[0].src)
-          .ready(Sprite).ready(function (sprite) {
-            sprite = Obj.merge(spritesData[0], sprite);
-            sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
+    var sources = spritesData.map(function (spriteData) {
+      return spriteData.src;
+    });
+    return HttpResource(sources)
+      .ready(Sprite).ready(function (sprite) {
+        sprite = Obj.merge(spritesData[0], sprite);
+        sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-            return sprite;
-          });
-      //});
+        return sprite;
+      });
   };
 
-  /*return function (spritesData) {
-    return spritesData
-      .reduce(function (resourcePool, spriteData) {
-        HttpResource(spriteData.src)
-          .ready(function (spriteDefinition) {
-            resourcePool.add(Sprite(spriteDefinition)
-              .ready(function (sprite) {
-                sprite = Obj.merge(spriteData, sprite);
-                sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
+    /*
+  // New proposal
+  return function (spritesData) {
+    return MultiResource(spritesData).each(function(spriteData) {
+      return HttpResource(spriteData.src)
+        .ready(Sprite).ready(function (sprite) {
+          sprite = Obj.merge(spritesData[0], sprite);
+          sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
 
-                return sprite;
-              }));
-          });
-
-        return resourcePool;
-      }, Resource());
-  };*/
+          return sprite;
+        });
+    });
+  }*/
 });
 /**
  * Created by Shaun on 2/5/15
