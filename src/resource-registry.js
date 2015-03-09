@@ -9,21 +9,21 @@ register('ResourceRegistry', [], function() {
   var resources = {};
 
   function register (resource) {
-    var uri = resource.uri;
+    var source = resource.source;
 
-    if(!resources[uri]) {
-      resources[uri] = [];
+    if(!resources[source]) {
+      resources[source] = [];
     }
 
-    resources[uri].push(resource);
+    resources[source].push(resource);
   }
 
-  function getResources (uri) {
-    if(!uri) {
+  function getResources (source) {
+    if(!source) {
       return resources;
     }
 
-    return resources[uri];
+    return resources[source];
   }
 
   return {

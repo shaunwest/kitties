@@ -6,19 +6,29 @@
 register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, ResourceRegistry, Common) {
   'use strict';
 
-  function Resource (sources, method) {
+  // method must be asynchronous
+  function Resource (source, method) {
     var successCallbacks = [],
       errorCallbacks = [],
       resource = {
         ready: ready,
         fetch: fetch,
         promise: null,
-        sources: sources
+        source: source
       };
 
     function ready (onSuccess, onError) {
-      successCallbacks.push(onSuccess);
-      errorCallbacks.push(onError);
+      if(Util.isArray(onSuccess)) {
+        successCallbacks = successCallbacks.concat(onSuccess);
+      } else {
+        successCallbacks.push(onSuccess);
+      }
+
+      if(Util.isArray(onError)) {
+        errorCallbacks = errorCallbacks.concat(onError);
+      } else {
+        errorCallbacks.push(onError);
+      }
 
       return resource;
     }
@@ -62,46 +72,37 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     }
 
     function fetch () {
-      resource.promise = sources.map(function(source, sourceIndex) {
-        var promise = method(source);
+      var promise = method(source);
 
-        if(!Util.isObject(promise) || !promise.then) {
-          Util.error('Provided resource method did not return a thenable object');
+      if(!Util.isObject(promise) || !promise.then) {
+        Util.error('Provided resource method did not return a thenable object');
+      }
+
+      resource.promise = promise.then(
+        function(result) {
+          onSuccess(result, 0);
+        },
+        function(result) {
+          onError(result, 0);
         }
-
-        return promise.then(
-          function(result) {
-            onSuccess(result, 0);
-          },
-          function(result) {
-            onError(result, 0);
-          }
-        );
-      });
+      );
 
       return resource;
     }
 
-    if(!Util.isFunction(method) || !sources) {
+    if(!Util.isFunction(method) || !source) {
       return;
     }
 
-    if(!Util.isArray(sources)) {
-      sources = [sources];
-    }
-
     if(Resource.baseUri) {
-      sources = sources.map(function(source) {
-        if(!Common.isFullUrl(source)) {
-          return Resource.baseUri + '/' + source;
-        }
-        return source;
-      });
+      if(!Common.isFullUrl(source)) {
+        source = Resource.baseUri + '/' + source;
+      }
     }
 
     ResourceRegistry.register(resource);
 
-    return resource.fetch();
+    return fetch();
   }
 
   Resource.baseUri = '';

@@ -1685,6 +1685,51 @@ register('ImageLoader', function () {
   };
 });
 /**
+ * Created by Shaun on 3/9/2015.
+ */
+
+register('MultiResource', ['Util'], function(Util) {
+  'use strict';
+
+  return function (sources) {
+    var successCallbacks = [],
+      errorCallbacks = [],
+      multiResource = {
+        ready: ready,
+        each: each
+      };
+
+    function ready(onSuccess, onError) {
+      if(Util.isArray(onSuccess)) {
+        successCallbacks = successCallbacks.concat(onSuccess);
+      } else {
+        successCallbacks.push(onSuccess);
+      }
+
+      if(Util.isArray(onError)) {
+        errorCallbacks = errorCallbacks.concat(onError);
+      } else {
+        errorCallbacks.push(onError);
+      }
+
+      return multiResource;
+    }
+
+    function each(callback) {
+      setTimeout(function() { // needs to happen AFTER ready() calls
+        sources.forEach(function(source) {
+          var resource = callback(source);
+          resource.ready(successCallbacks, errorCallbacks);
+        });
+      }, 1);
+
+      return multiResource;
+    }
+
+    return multiResource;
+  };
+});
+/**
  * Created by Shaun on 3/1/15
  *
  */
@@ -1695,21 +1740,21 @@ register('ResourceRegistry', [], function() {
   var resources = {};
 
   function register (resource) {
-    var uri = resource.uri;
+    var source = resource.source;
 
-    if(!resources[uri]) {
-      resources[uri] = [];
+    if(!resources[source]) {
+      resources[source] = [];
     }
 
-    resources[uri].push(resource);
+    resources[source].push(resource);
   }
 
-  function getResources (uri) {
-    if(!uri) {
+  function getResources (source) {
+    if(!source) {
       return resources;
     }
 
-    return resources[uri];
+    return resources[source];
   }
 
   return {
@@ -1725,19 +1770,29 @@ register('ResourceRegistry', [], function() {
 register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, ResourceRegistry, Common) {
   'use strict';
 
-  function Resource (sources, method) {
+  // method must be asynchronous
+  function Resource (source, method) {
     var successCallbacks = [],
       errorCallbacks = [],
       resource = {
         ready: ready,
         fetch: fetch,
         promise: null,
-        sources: sources
+        source: source
       };
 
     function ready (onSuccess, onError) {
-      successCallbacks.push(onSuccess);
-      errorCallbacks.push(onError);
+      if(Util.isArray(onSuccess)) {
+        successCallbacks = successCallbacks.concat(onSuccess);
+      } else {
+        successCallbacks.push(onSuccess);
+      }
+
+      if(Util.isArray(onError)) {
+        errorCallbacks = errorCallbacks.concat(onError);
+      } else {
+        errorCallbacks.push(onError);
+      }
 
       return resource;
     }
@@ -1781,46 +1836,37 @@ register('Resource', ['Util', 'ResourceRegistry', 'Common'], function(Util, Reso
     }
 
     function fetch () {
-      resource.promise = sources.map(function(source, sourceIndex) {
-        var promise = method(source);
+      var promise = method(source);
 
-        if(!Util.isObject(promise) || !promise.then) {
-          Util.error('Provided resource method did not return a thenable object');
+      if(!Util.isObject(promise) || !promise.then) {
+        Util.error('Provided resource method did not return a thenable object');
+      }
+
+      resource.promise = promise.then(
+        function(result) {
+          onSuccess(result, 0);
+        },
+        function(result) {
+          onError(result, 0);
         }
-
-        return promise.then(
-          function(result) {
-            onSuccess(result, 0);
-          },
-          function(result) {
-            onError(result, 0);
-          }
-        );
-      });
+      );
 
       return resource;
     }
 
-    if(!Util.isFunction(method) || !sources) {
+    if(!Util.isFunction(method) || !source) {
       return;
     }
 
-    if(!Util.isArray(sources)) {
-      sources = [sources];
-    }
-
     if(Resource.baseUri) {
-      sources = sources.map(function(source) {
-        if(!Common.isFullUrl(source)) {
-          return Resource.baseUri + '/' + source;
-        }
-        return source;
-      });
+      if(!Common.isFullUrl(source)) {
+        source = Resource.baseUri + '/' + source;
+      }
     }
 
     ResourceRegistry.register(resource);
 
-    return resource.fetch();
+    return fetch();
   }
 
   Resource.baseUri = '';
@@ -2055,36 +2101,48 @@ function (Obj, ImageResource, FrameSet) {
  *
  */
 
-register('Sprites', ['Obj', 'Resource', 'HttpResource', 'Sprite', 'SpriteAnimation'],
-  function(Obj, Resource, HttpResource, Sprite, SpriteAnimation) {
+/* What to do about longass dependency lists?
+*  Proposal:
+*  register('myPackage.Sprites', ['Obj'], function(Obj) {
+*    var MultiResource = use('MultiResource');
+*    var HttpResource = use('HttpResource');
+*    var Sprite = use('Sprite');
+*    ...
+*    OR
+*    var myPackage = use('myPackage');
+*    myPackage.MultiResource(...);
+*    ...
+*  });
+*
+*  ALTERNATIVE:
+*  register('myPackage.Sprites', ['Obj', 'myPackage.*'], function(Obj, myPackage) {
+*    myPackage.MultiResource(...);
+*    ...
+*  });
+*
+*  Anything within myPackage can be imported with a use() call
+*
+*  Problems:
+*  1. use is asynchronous, so everything in this package needs to already be loaded
+*  2. circular dependency issues will probably arise
+*
+*/
+register('Sprites', ['Obj', 'MultiResource', 'HttpResource', 'Sprite', 'SpriteAnimation'], function(Obj, MultiResource, HttpResource, Sprite, SpriteAnimation) {
   'use strict';
 
   return function (spritesData) {
-    var sources = spritesData.map(function (spriteData) {
-      return spriteData.src;
-    });
-    return HttpResource(sources)
-      .ready(Sprite).ready(function (sprite) {
-        sprite = Obj.merge(spritesData[0], sprite);
-        sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
+    return MultiResource(spritesData)
+      .each(function(spriteData) {
+        return HttpResource(spriteData.src)
+          .ready(Sprite)
+          .ready(function (sprite) {
+            sprite = Obj.merge(spriteData, sprite);
+            sprite.animation = SpriteAnimation(sprite.frameSet);
 
-        return sprite;
-      });
+            return sprite;
+          });
+    });
   };
-
-    /*
-  // New proposal
-  return function (spritesData) {
-    return MultiResource(spritesData).each(function(spriteData) {
-      return HttpResource(spriteData.src)
-        .ready(Sprite).ready(function (sprite) {
-          sprite = Obj.merge(spritesData[0], sprite);
-          sprite.animation = SpriteAnimation(sprite.frameSet).play('run');
-
-          return sprite;
-        });
-    });
-  }*/
 });
 /**
  * Created by Shaun on 2/5/15
