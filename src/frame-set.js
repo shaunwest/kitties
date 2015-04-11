@@ -3,7 +3,7 @@
  *
  */
 
-register('FrameSet', ['Common', 'Func'], function(Common, Func) {
+register('FrameSet', ['Common', '_'], function(Common, _) {
   'use strict';
 
   var DEFAULT_RATE = 5;
@@ -44,7 +44,7 @@ register('FrameSet', ['Common', 'Func'], function(Common, Func) {
         );
 
         frameSequence.frames = frameSequence.frames
-          .map(Func.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
+          .map(_.partial(Common.getTransparentImage, spriteDefinition.transparentColor));
 
         frameSet[frameSetId] = frameSequence;
 

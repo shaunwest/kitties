@@ -3,7 +3,7 @@
  *
  */
 
-register('ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Resource) {
+register('resources.ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Resource) {
   'use strict';
 
   return function (uri) {

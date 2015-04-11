@@ -24,13 +24,12 @@
     var resource;
     var refresh;
 
+    register.lib('_', _.noConflict());
+
     use([
       'Util',
-      'HttpResource',
-      'ImageResource',
-      'Resource',
-      'ResourceRegistry',
-      'Sprites',
+      'resources.*',
+      'sprites.Sprites',
       'EntityLayer',
       'BackgroundLayer',
       'CollisionLayer',
@@ -42,10 +41,7 @@
       ],
     function(
       Util,
-      HttpResource,
-      ImageResource,
-      Resource,
-      ResourceRegistry,
+      resources,
       Sprites,
       EntityLayer, 
       BackgroundLayer, 
@@ -66,7 +62,7 @@
       };       
 
       refresh = function() {
-        return ResourceRegistry.getResources('assets/kitty.json');
+        return resources.ResourceRegistry.getResources('assets/kitty.json');
       };
 
       // VIEW STUFF
@@ -92,12 +88,12 @@
 
       // DATA STUFF
       var sceneUri = 'kitty-world.json';
-      Resource.baseUri = 'assets';
+      resources.Resource.baseUri = 'assets';
 
-      HttpResource(sceneUri).ready(function(sceneData) {
+      resources.HttpResource(sceneUri).ready(function(sceneData) {
         var layerDefinitions = sceneData.layerDefinitions;
 
-        ImageResource(layerDefinitions.background.backgroundUrl)
+        resources.ImageResource(layerDefinitions.background.backgroundUrl)
           .ready(function (background) {
             backgroundLayer.setBackground(background);
           });

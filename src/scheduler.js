@@ -4,7 +4,7 @@
  * 
  */
 
-register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
+register('Scheduler', ['Util', '_'], function(Util, _) {
   'use strict';
 
   var instance;
@@ -23,7 +23,7 @@ register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
   Scheduler.instance = create;
 
   function create() {
-    return Obj.clone({
+    return _.assign({}, {
       scheduled: [],
       schedule: schedule,
       unschedule: unschedule,
@@ -32,7 +32,7 @@ register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
       frame: frame,
       id: id
     }).start();
-  };
+  }
 
   function schedule(cb, rate) {
     function setRate(newRate) {
@@ -79,14 +79,14 @@ register('Scheduler', ['Util', 'Obj'], function(Util, Obj) {
       return this;
     }
 
-    Obj.merge({
+    _.assign(this, {
       actualFps: 0,
       ticks: 0,
       elapsedSeconds: 0,
       running: true,
       lastUpdateTime: new Date(),
       oneSecondTimerId: window.setInterval(onOneSecond.bind(this), ONE_SECOND)
-    }, this);
+    });
 
     return this.frame();
   }

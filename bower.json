@@ -17,6 +17,7 @@
     "tests"
   ],
   "dependencies": {
-    "kilo-all": "git@github.com:shaunwest/kilo-all.git"
+    "kilo": "git@github.com:shaunwest/kilo.git",
+    "lodash": "~3.5.0"
   }
 }

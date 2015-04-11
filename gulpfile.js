@@ -11,7 +11,8 @@ var runSequence = require('run-sequence');
 var clean = require('gulp-clean');
 var karmaConfig = __dirname + '/karma.conf.js';
 var jsSources = [
-  'bower_components/kilo-all/kilo-all.js',
+  'bower_components/kilo/kilo.js',
+  'bower_components/lodash/lodash.min.js',
   'src/**/*.js'
 ];
 

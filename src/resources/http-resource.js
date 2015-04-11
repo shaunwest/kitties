@@ -3,11 +3,11 @@
  *
  */
 
-register('HttpResource', ['Util', 'Http', 'Resource'], function(Util, Http, Resource) {
+register('resources.HttpResource', ['Util', 'Kjax', 'Resource'], function(Util, Kjax, Resource) {
   'use strict';
 
   return function (uri) {
-    return Resource(uri, Http.get)
+    return Resource(uri, Kjax.get)
       .ready(
         function(response) {
           return response.data;
