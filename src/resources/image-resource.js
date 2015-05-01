@@ -3,10 +3,9 @@
  *
  */
 
-register('resources.ImageResource', ['ImageLoader', 'Resource'], function(ImageLoader, Resource) {
-  'use strict';
+import Resource from './resource.js';
+import {getImage} from './image-loader.js';
 
-  return function (uri) {
-    return Resource(uri, ImageLoader);
-  };
-});
+export default function (uri) {
+  return Resource(uri, getImage);
+};

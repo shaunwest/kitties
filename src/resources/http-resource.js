@@ -3,15 +3,15 @@
  *
  */
 
-register('resources.HttpResource', ['Util', 'Kjax', 'Resource'], function(Util, Kjax, Resource) {
-  'use strict';
+import Util from '../util.js';
+import {requestGet} from '../kjax.js';
+import Resource from './resource.js';
 
-  return function (uri) {
-    return Resource(uri, Kjax.get)
-      .ready(
-        function(response) {
-          return response.data;
-        }
-      );
-  };
-});
+export default function (uri) {
+  return Resource(uri, requestGet)
+    .ready(
+      function(response) {
+        return response.data;
+      }
+    );
+};

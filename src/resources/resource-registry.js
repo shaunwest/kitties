@@ -3,31 +3,27 @@
  *
  */
 
-register('resources.ResourceRegistry', [], function() {
-  'use strict';
+var resources = {};
 
-  var resources = {};
+function register (resource) {
+  var source = resource.source;
 
-  function register (resource) {
-    var source = resource.source;
-
-    if(!resources[source]) {
-      resources[source] = [];
-    }
-
-    resources[source].push(resource);
+  if(!resources[source]) {
+    resources[source] = [];
   }
 
-  function getResources (source) {
-    if(!source) {
-      return resources;
-    }
+  resources[source].push(resource);
+}
 
-    return resources[source];
+function getResources (source) {
+  if(!source) {
+    return resources;
   }
 
-  return {
-    register: register,
-    getResources: getResources
-  };
-});
+  return resources[source];
+}
+
+export default {
+  register: register,
+  getResources: getResources
+};
