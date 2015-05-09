@@ -7,5 +7,5 @@ import Resource from './resource.js';
 import {getImage} from './image-loader.js';
 
 export default function (uri) {
-  return Resource(uri, getImage);
+  return Resource(getImage, uri);
 };

@@ -8,7 +8,7 @@ import ResourceRegistry from './resource-registry.js';
 import {isFullUrl} from '../common.js';
 
 // method must be asynchronous
-function Resource (source, method) {
+function Resource (method, source) {
   var successCallbacks = [],
     errorCallbacks = [],
     resource = {
@@ -17,6 +17,10 @@ function Resource (source, method) {
       promise: null,
       source: source
     };
+
+  if(!Util.isFunction(method)) {
+    return;
+  }
 
   function ready (onSuccess, onError) {
     if(Util.isArray(onSuccess)) {
@@ -41,16 +45,18 @@ function Resource (source, method) {
       return;
     }
 
-    result = successCallback(result);
-    if(result && result.ready) {
-      result.ready(function (result) {
+    var newResult = successCallback(result);
+    if(newResult && newResult.ready) {
+      newResult.ready(function (result) {
         onSuccess(result, index + 1);
       }, function (result) {
         onError(result, index + 1);
       });
       return;
+    } else if(!newResult) {
+      newResult = result;
     }
-    onSuccess(result, index + 1);
+    onSuccess(newResult, index + 1);
   }
 
   function onError(result, index) {
@@ -72,13 +78,22 @@ function Resource (source, method) {
     onError(result, index + 1);
   }
 
-  function fetch () {
-    var promise = method(source);
+  function fetch (source) {
+    var promise;
+
+    if(Resource.baseUri) {
+      if(!isFullUrl(source)) {
+        source = Resource.baseUri + '/' + source;
+      }
+    }
+
+    promise = method(source);
 
     if(!Util.isObject(promise) || !promise.then) {
       Util.error('Provided resource method did not return a thenable object');
     }
 
+    resource.source = source;
     resource.promise = promise.then(
       function(result) {
         onSuccess(result, 0);
@@ -91,19 +106,10 @@ function Resource (source, method) {
     return resource;
   }
 
-  if(!Util.isFunction(method) || !source) {
-    return;
-  }
-
-  if(Resource.baseUri) {
-    if(!isFullUrl(source)) {
-      source = Resource.baseUri + '/' + source;
-    }
-  }
-
   ResourceRegistry.register(resource);
 
-  return fetch();
+  //return fetch();
+  return (source) ? resource.fetch(source) : resource;
 }
 
 Resource.baseUri = '';

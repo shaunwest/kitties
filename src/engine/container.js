@@ -5,9 +5,12 @@
 var container = {};
 var singletons = [];
 
-export function tryToInstantiate (constructor, msg) {
+export function tryToInstantiate (func, msg) {
   try {
-    return new constructor();
+    // Notes on 'new': If func returns an object, the object
+    // will be used as the instance. If func does not return
+    // an object, a new object is created based on func.prototype
+    return new func();
   } catch(e) {
     if(msg) {
       console.error(msg);
@@ -25,11 +28,20 @@ function findSingleton (constructor) {
 }
 
 export function register (idOrConstructor, value) {
+  var instance;
+
   if(typeof idOrConstructor === 'string') {
     container[idOrConstructor] = value;
     return;
   }
-  var instance = tryToInstantiate(idOrConstructor, 'Not a class');
+
+  if(typeof idOrConstructor !== 'function') {
+    return;
+  }
+
+  //instance = tryToInstantiate(idOrConstructor, '"' + idOrConstructor + '" not a class');
+  instance = new idOrConstructor();
+
   if (instance) {
     singletons.push({
       constructor: idOrConstructor,

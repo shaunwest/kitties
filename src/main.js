@@ -2,26 +2,29 @@
  * Created by Shaun on 4/23/2015.
  */
 
-import ResourceRegistry from './resources/resource-registry.js';
-import BackgroundLayer from './layers/background-layer.js';
+import ResourceRegistry from './engine/resources/resource-registry.js';
+/*import BackgroundLayer from './layers/background-layer.js';
 import EntityLayer from './layers/entity-layer.js';
 import CollisionLayer from './layers/collision-layer.js';
 import Scheduler from './scheduler.js';
-import Scene from './world/scene.js';
-import {cacheDataElements, Fragment} from './fragments.js';
-import {use, instance} from './injector.js';
-import {log} from './logger.js';
+import Scene from './world/scene.js';*/
+import {cacheDataElements, Fragment} from './engine/fragments.js';
+//import {use, instance} from './injector.js';
+//import {register} from './engine/container.js';
+//import {log} from './logger.js';
+import View from './view.js';
+import Loader from './loader.js';
 
 var refresh;
 
-var viewport = {
+/*register('viewport', {
   x: 0,
   y: 0,
   width: 600,
   height: 400
-};
+});*/
 
-class Data {
+/*class Data {
   setValue(value) {
     this.value = value;
   }
@@ -67,18 +70,24 @@ class Foo {
   }
 }
 
-var foo = new Foo('hello!');
+var foo = new Foo('hello!');*/
 
 cacheDataElements();
 
-var canvasBackground = Fragment('canvas-background');
+/*var canvasBackground = Fragment('canvas-background');
 var canvasEntities = Fragment('canvas-entities');
-var canvasColliders = Fragment('canvas-colliders');
+var canvasColliders = Fragment('canvas-colliders');*/
 
 refresh = function() {
   return ResourceRegistry.getResources('assets/kitty.json');
 };
 
+//new View();
+
+var loader = new Loader();
+loader.getScene('kitty-world.json','assets');
+
+/*
 // VIEW STUFF
 
 // Setup background layer
@@ -98,9 +107,9 @@ var collisionLayer = CollisionLayer(canvasColliders);
 Scheduler(function () {
   collisionLayer.draw(viewport);
 });
+*/
 
-
-Scene('kitty-world.json','assets').ready(function(scene) {
+/*Scene('kitty-world.json','assets').ready(function(scene) {
   scene.background.ready(function (background) {
     backgroundLayer.setBackground(background);
   });
@@ -114,4 +123,4 @@ Scene('kitty-world.json','assets').ready(function(scene) {
   });
 
   collisionLayer.setColliders(scene.sceneData.layerDefinitions.collisions.colliders);
-});
+});*/

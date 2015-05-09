@@ -13,6 +13,7 @@ export default function (spritesData) {
   return MultiResource(spritesData)
     .each(function(spriteData) {
       return HttpResource(spriteData.src)
+      //return HttpResource()
         .ready(Sprite)
         .ready(function (sprite) {
           sprite = mergeObject(spriteData, sprite);
