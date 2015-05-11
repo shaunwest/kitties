@@ -7,6 +7,8 @@ import Util from '../util.js';
 import ResourceRegistry from './resource-registry.js';
 import {isFullUrl} from '../common.js';
 
+var resourcePool = {};
+
 // method must be asynchronous
 function Resource (method, source) {
   var successCallbacks = [],
@@ -106,12 +108,26 @@ function Resource (method, source) {
     return resource;
   }
 
-  ResourceRegistry.register(resource);
+  // TODO: make better
+  if(source) {
+    var fullSource = source;
+    if (Resource.baseUri) {
+      if (!isFullUrl(source)) {
+        fullSource = Resource.baseUri + '/' + source;
+      }
+    }
+    var existingResource = resourcePool[fullSource];
+    if (existingResource) {
+      return existingResource.fetch(source);
+    }
+  }
 
-  //return fetch();
+  //ResourceRegistry.register(resource);
+  resourcePool[fullSource] = resource;
   return (source) ? resource.fetch(source) : resource;
 }
 
 Resource.baseUri = '';
+Resource.pool = resourcePool;
 
 export default Resource;

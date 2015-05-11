@@ -5,7 +5,7 @@
 
 var resources = {};
 
-function register (resource) {
+/*function register (resource) {
   var source = resource.source;
 
   if(!resources[source]) {
@@ -21,9 +21,17 @@ function getResources (source) {
   }
 
   return resources[source];
+}*/
+
+function register (resource) {
+  resources[resource.source] = resource;
+}
+
+function getResource(source) {
+  return resources[source];
 }
 
 export default {
   register: register,
-  getResources: getResources
+  getResource: getResource
 };

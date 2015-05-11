@@ -2,57 +2,67 @@
  * Created by shaunwest on 4/30/15.
  */
 
-var container = {};
+var instances = {};
 var singletons = [];
 
-export function tryToInstantiate (func, msg) {
-  try {
-    // Notes on 'new': If func returns an object, the object
-    // will be used as the instance. If func does not return
-    // an object, a new object is created based on func.prototype
-    return new func();
-  } catch(e) {
-    if(msg) {
-      console.error(msg);
-    }
-    return null;
-  }
-}
-
-function findSingleton (constructor) {
+function findSingleton (token) {
   var results = singletons.filter(function(singleton) {
-    return (constructor === singleton.constructor);
+    return (token === singleton.token);
   });
 
   return (results.length) ? results[0].instance : null;
 }
 
-export function register (idOrConstructor, value) {
-  var instance;
+export function useFactory (id, factory) {
+  return includeInstance(id) || registerFactory(id, factory);
+}
 
-  if(typeof idOrConstructor === 'string') {
-    container[idOrConstructor] = value;
-    return;
-  }
+export function useSingleton (token, func) {
+  return includeSingleton(token) || registerSingleton(token, func);
+}
 
-  if(typeof idOrConstructor !== 'function') {
-    return;
-  }
+export function useInstance(id, instance) {
+  return includeInstance(id) || registerInstance(id, instance);
+}
 
-  //instance = tryToInstantiate(idOrConstructor, '"' + idOrConstructor + '" not a class');
-  instance = new idOrConstructor();
-
-  if (instance) {
-    singletons.push({
-      constructor: idOrConstructor,
-      instance: instance
-    });
+export function registerFactory (id, factory) {
+  if(typeof factory == 'function') {
+    return registerInstance(id, factory());
   }
 }
 
-export function include (idOrConstructor) {
-  if(typeof idOrConstructor === 'string') {
-    return container[idOrConstructor];
+export function registerSingleton (token, func) {
+  var instance;
+
+  if(typeof token == 'string') {
+    instance = new func();
   }
-  return findSingleton(idOrConstructor);
+
+  if(typeof token == 'function') {
+    instance = new token();
+  }
+
+  if (instance) {
+    singletons.push({
+      token: token,
+      instance: instance
+    });
+    return instance;
+  }
+}
+
+export function registerInstance (id, instance) {
+  if(typeof id != 'string' || typeof instance == 'undefined') {
+    return;
+  }
+  instances[id] = instance;
+  return instance;
+}
+
+export function includeSingleton (token) {
+  return findSingleton(token);
+}
+
+export function includeInstance (id) {
+  return instances[id];
 }
