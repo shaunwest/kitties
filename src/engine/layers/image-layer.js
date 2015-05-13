@@ -2,8 +2,8 @@
  * Created by Shaun on 2/5/15
  * 
  */
-
-export default class BackgroundLayer {
+// TODO: remove references to 'background'
+export default class ImageLayer {
   constructor (canvas) {
     this.canvas = canvas;
     this.context2d = canvas.getContext('2d');

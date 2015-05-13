@@ -16,7 +16,7 @@
     "entities": {
       "sprites": [
         {
-          "src": "kitty.json",
+          "srcId": "kitty-sprite",
           "x": 0,
           "y": 0,
           "width": 32,

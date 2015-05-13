@@ -1,25 +1,40 @@
 {
-  "id": "kitty-sprite",
-  "description": "Kitty Sprite File",
-  "spriteSheetUrl": "cats.png",
-  "transparentColor": [255, 0, 255],
-  "frameSize": {
-    "width": 32,
-    "height": 32
-  },
-  "frameSet": {
-    "run": {
-      "rate": 10,
-      "frames": [
-        { "x": 74, "y": 0 },
-        { "x": 114, "y": 0 }
-      ]
+  "kitty-sprite": {
+    "description": "Kitty Sprite",
+    "spriteSheetUrl": "cats.png",
+    "transparentColor": [
+      255,
+      0,
+      255
+    ],
+    "frameSize": {
+      "width": 32,
+      "height": 32
     },
-    "idle": {
-      "rate": 1,
-      "frames": [
-        { "x": 0, "y": 0 }
-      ]
+    "frameSet": {
+      "run": {
+        "rate": 10,
+        "frames": [
+          {
+            "x": 74,
+            "y": 0
+          },
+          {
+            "x": 114,
+            "y": 0
+          }
+        ]
+      },
+      "idle": {
+        "rate": 1,
+        "frames": [
+          {
+            "x": 0,
+            "y": 0
+          }
+        ]
+      }
     }
   }
 }
+

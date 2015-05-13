@@ -29,19 +29,17 @@ export function registerFactory (id, factory) {
   if(typeof factory == 'function') {
     return registerInstance(id, factory());
   }
+  throw 'registerFactory: factory must be a function';
 }
 
-export function registerSingleton (token, func) {
+export function registerSingleton (token) {
   var instance;
 
-  if(typeof token == 'string') {
-    instance = new func();
+  if(typeof token != 'function') {
+    throw 'registerSingleton: first argument must be a function';
   }
 
-  if(typeof token == 'function') {
-    instance = new token();
-  }
-
+  instance = new token();
   if (instance) {
     singletons.push({
       token: token,
@@ -53,7 +51,7 @@ export function registerSingleton (token, func) {
 
 export function registerInstance (id, instance) {
   if(typeof id != 'string' || typeof instance == 'undefined') {
-    return;
+    throw 'registerInstance: a string id and an instance are required';
   }
   instances[id] = instance;
   return instance;
@@ -65,4 +63,8 @@ export function includeSingleton (token) {
 
 export function includeInstance (id) {
   return instances[id];
+}
+
+export function getInstances () {
+  return instances;
 }
