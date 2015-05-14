@@ -2,6 +2,13 @@
  * Created by shaunwest on 5/9/15.
  */
 import Util from '../util.js';
+import {mergeObject} from '../common.js';
+
+/*
+There are 2 schema types: "function" and "not function"
+With that in mind, this could possibly be refactored to be a
+little more clear/readable
+ */
 
 export default class SchemaMapper {
   constructor (schema) {
@@ -13,8 +20,7 @@ export default class SchemaMapper {
   }
 
   map (data) {
-    var schema = (typeof this.schema == 'function') ? this.schema(data) : this.schema;
-    return mapValue(data, schema);
+    return mapValue(getConfig(data, this.schema));
   }
 }
 
@@ -23,41 +29,69 @@ var typeMap = {
   'array': iterateArray
 };
 
-function mapValue (val, schema, container) {
-  var mappingFunc, retVal;
+function getConfig(data, schema, container) {
+  return (typeof schema == 'function') ?
+    { data: data, schema: null, func: schema, container: container } :
+    { data: data, schema: schema, func: null, container: container };
+}
 
-  if(!schema) {
-    return val;
+function mapByType(data, schema) {
+  var mappingFunc = typeMap[typeof data];
+  if (mappingFunc) {
+    return mappingFunc(data, schema);
+  }
+  return data;
+}
+
+function clone(val) {
+  if(Util.isObject(val)) {
+    return mergeObject(val);
   }
 
-  if(typeof schema == 'function') {
-    val = schema(val, container);
-  } else if(typeof schema == 'object' && schema.hasOwnProperty('schema')) {
-    val = mapValue(val, schema.schema);
-    schema.cb(val);
-    return val;
-  }
-
-  mappingFunc = typeMap[typeof val];
-  if(mappingFunc) {
-    val = mappingFunc(val, schema);
+  if(Util.isArray(val)) {
+    return val.slice(0);
   }
 
   return val;
 }
 
+function mapValue(config) {
+  var func = config.func,
+    data = config.data,
+    schema = config.schema,
+    container = config.container,
+    result,
+    mappedValue;
+
+  mappedValue = (schema) ? mapByType(data, schema) : clone(data);
+
+  if(func) {
+    result = func(mappedValue, container);
+    if(typeof result == 'object' && result.cb) {
+      mappedValue = mapValue({
+        data: data,
+        func: null,
+        schema: result.schema,
+        container: container
+      });
+      result.cb(mappedValue);
+    }
+  }
+
+  return mappedValue;
+}
+
 function iterateKeys (obj, schema) {
   return Object.keys(obj).reduce(function(newObj, key) {
     var schemaVal = (schema.hasOwnProperty('*')) ? schema['*'] : schema[key];
-    newObj[key] = mapValue(obj[key], schemaVal, newObj);
+    newObj[key] = mapValue(getConfig(obj[key], schemaVal, newObj));
     return newObj;
   }, {});
 }
 
 function iterateArray (arr, schema) {
   return arr.reduce(function(newArr, val, index) {
-    newArr.push(mapValue(arr[index], schema[0], newArr));
+    newArr.push(mapValue(getConfig(arr[index], schema[0], newArr)));
     return newArr;
   }, []);
 }
-

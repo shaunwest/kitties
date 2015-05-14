@@ -39,7 +39,9 @@ gulp.task('build', function () {
     entries: './src/main.js',
     debug: true,
     // defining transforms here will avoid crashing your stream
-    transform: [babelify.configure({stage: 1})]
+    transform: [babelify.configure({
+      stage: 1
+    })]
   });
 
   return b.bundle()

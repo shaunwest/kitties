@@ -27,39 +27,12 @@ export function attachResource(key, resourceFactory) {
   }
 }
 
-/*export function registerArray(id, schema) {
-  return function(val) {
-    if(Util.isArray(schema)) {
-      registerInstance(id, val);
-      return schema;
-    }
-
-    var instance = includeInstance(id);
-    if(!instance) {
-      instance = [val];
-      registerInstance(instance);
-      return schema;
-    }
-
-    instance.push(val);
-
-    return schema;
-  }
-}*/
-
-/*export function registerValue(id, schema) {
-  return function(val) {
-    registerInstance(id, val);
-    return schema;
-  }
-}*/
-
 export function registerValue(id, schema) {
-  return function(val) {
+  return function() {
     return {
       schema: schema,
-      cb: function (mappedVal) {
-        registerInstance(id, mappedVal);
+      cb: function (val) {
+        registerInstance(id, val);
       }
     }
   };
