@@ -5,7 +5,7 @@
 import inject from '../injector.js';
 import {useSingleton} from '../container.js';
 
-export default function () {
+export default function use () {
   var tokens = Array.prototype.slice.call(arguments);
   return inject(tokens.map(token => useSingleton(token)));
 }

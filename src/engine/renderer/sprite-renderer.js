@@ -5,7 +5,7 @@
 
 import {intersects} from '../common.js';
 
-export default class EntityLayer {
+export default class SpriteRenderer {
   constructor(canvas) {
     this.entities = [];
     this.context2d = canvas.getContext('2d');

@@ -1,4 +1,4 @@
-import Scheduler from '../scheduler.js';
+import Scheduler from '../engine/scheduler.js';
 
 export default function (frameSet) {
   var currentFrameSequence = null,
@@ -15,7 +15,7 @@ export default function (frameSet) {
       setRate(currentFrameSequence.rate);
     }
 
-    currentFrame = currentFrameSequence.frames[currentFrameIndex]
+    currentFrame = currentFrameSequence.frames[currentFrameIndex];
     if(frameCallback) {
       frameCallback(currentFrame);
     }
@@ -42,7 +42,7 @@ export default function (frameSet) {
       return this;
     },
     kill: function() {
-      scheduler.unschedule(schedulerId);
+      Scheduler.unschedule(schedulerId);
       return this;
     },
     currentFrameIndex: function() {

@@ -3,24 +3,27 @@
  */
 
 import fragment from '../engine/decorators/fragment.js'
-import create from '../engine/decorators/create.js'
+import async from '../engine/decorators/async.js'
 import Scheduler from '../engine/scheduler.js'
-import ImageLayer from '../engine/layers/image-layer.js'
+import ImageRenderer from '../engine/renderer/image-renderer.js'
 import viewport from '../viewport.js'
 import ImageResource from '../engine/resources/image-resource.js'
 
 @fragment('canvas-background')
-@create('backgroundImage', ImageResource)
+//@create('backgroundImage', ImageResource) // maybe should be created elsewhere...
+@async('backgroundImage')
 export default class BackgroundLayer {
-  constructor (canvasBackground, backgroundImage) {
-    var backgroundLayer = new ImageLayer(canvasBackground);
+  constructor (canvas, backgroundImagePromise) {
+    var renderer = new ImageRenderer(canvas);
 
     Scheduler(function () {
-      backgroundLayer.draw(viewport);
+      renderer.draw(viewport);
     });
 
-    backgroundImage.ready(function(background) {
-      backgroundLayer.setBackground(background);
+    backgroundImagePromise.then(function(backgroundImageResource) {
+      backgroundImageResource.ready(function(backgroundImage) {
+        renderer.setImage(backgroundImage);
+      });
     });
   }
 }

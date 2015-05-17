@@ -7,7 +7,6 @@ import {cacheDataElements} from './engine/fragments.js';
 import Resource from './engine/resources/resource.js';
 import {getInstances} from './engine/container.js';
 import HttpResource from './engine/resources/http-resource.js';
-//import Loader from './loader.js';
 import SceneSchema from './schema/scene-schema.js';
 import SpriteSchema from './schema/sprite-schema.js';
 import Scene from './scene.js';
@@ -27,19 +26,22 @@ Resource.baseUri = 'assets';
 window.Resource = Resource;
 window.getInstances = getInstances;
 
-var sceneSchema = SceneSchema();
+/*var sceneSchema = SceneSchema();
 
 HttpResource('kitty-world.json')
   .ready(function(sceneData) {
     var scene = sceneSchema.map(sceneData);
     console.log(scene);
     Scene(scene);
-  });
+  });*/
 
-var spriteSchema = SpriteSchema();
+SceneSchema();
+SpriteSchema();
+
+/*var spriteSchema = SpriteSchema();
 
 HttpResource('kitty.json')
   .ready(function(spriteData) {
     var sprite = spriteSchema.map(spriteData);
     console.log(sprite);
-  });
+  });*/

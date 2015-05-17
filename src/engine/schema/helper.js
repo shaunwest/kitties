@@ -12,10 +12,23 @@ export function setProp(prop, func) {
 }
 
 export function includeResource(id) {
-  return function(val) {
+  return function (val) {
     var resource = includeInstance(id);
     if(resource) {
       resource.fetch(val);
+    }
+  }
+}
+
+export function registerResource(id, resourceFactory, schema) {
+  return function () {
+    return {
+      schema: schema,
+      cb: function (val) {
+        var resource = resourceFactory();
+        registerInstance(id, resource);
+        resource.fetch(val);
+      }
     }
   }
 }

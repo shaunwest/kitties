@@ -8,7 +8,7 @@ import {intersects} from '../common.js';
 const COLLIDER_STROKE = '#ff00ff';
 const ENTITY_STROKE = '#50ff68';
 
-export default class CollisionLayer  {
+export default class CollisionRenderer  {
   constructor (canvas) {
     this.colliders = [];
     this.entities = [];

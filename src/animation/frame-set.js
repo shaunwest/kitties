@@ -3,7 +3,7 @@
  *
  */
 
-import {getCanvas, getTransparentImage} from '../common.js';
+import {getCanvas, getTransparentImage} from '../engine/common.js';
 
 const DEFAULT_RATE = 5;
 
