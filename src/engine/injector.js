@@ -18,3 +18,13 @@ export default function (injected) {
     return newTarget;
   };
 }
+
+/*export function asyncInject (injected) {
+  return function(target) {
+    injected = (target._injected) ?
+      injected.concat(target._injected) :
+      injected;
+
+    return target;
+  };
+}*/

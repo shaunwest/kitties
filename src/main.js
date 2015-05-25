@@ -9,7 +9,10 @@ import {getInstances} from './engine/container.js';
 import HttpResource from './engine/resources/http-resource.js';
 import SceneSchema from './schema/scene-schema.js';
 import SpriteSchema from './schema/sprite-schema.js';
-import Scene from './scene.js';
+//import Scene from './scene.js';
+import BackgroundLayer from './layers/background-layer.js';
+//import ObservableResource from '../resources/observable-resource.js';
+import Rx from 'rx';
 
 cacheDataElements();
 
@@ -17,31 +20,70 @@ cacheDataElements();
   return ResourceRegistry.getResources('assets/kitty.json');
 };*/
 
-//var loader = new Loader();
-//loader.getScene('kitty-world.json','assets');
-
 Resource.baseUri = 'assets';
 
 // DEBUG
-window.Resource = Resource;
+//window.Resource = Resource;
 window.getInstances = getInstances;
 
-/*var sceneSchema = SceneSchema();
+/*var oneSecond = Rx.Observable.interval(1000);
 
-HttpResource('kitty-world.json')
-  .ready(function(sceneData) {
-    var scene = sceneSchema.map(sceneData);
-    console.log(scene);
-    Scene(scene);
-  });*/
+function getAsset() {
+  return Rx.DOM.ajax({ url: 'assets/kitty.json', responseType: 'json'});
+}
 
-SceneSchema();
-SpriteSchema();
+var assets = oneSecond.selectMany(getAsset).map(function(data) {
+  return data.response;
+});
 
-/*var spriteSchema = SpriteSchema();
+assets.forEach(function(data) { // I guess forEach or Subscribe is needed for the whole thing to start...
+  console.log(1, data);
+});*/
 
-HttpResource('kitty.json')
-  .ready(function(spriteData) {
-    var sprite = spriteSchema.map(spriteData);
-    console.log(sprite);
-  });*/
+
+
+
+
+
+
+/*function ArrayStream() {
+  var observer;
+  var observable = Rx.Observable.create(function(ob) {
+    observer = ob;
+    return function() {
+      console.log('disposed');
+    }
+  });
+
+  return {
+    add: function(value) {
+      observer.onNext(value);
+      return this;
+    },
+    subscribe: function() {
+      return observable.subscribe.apply(observable, arguments);
+    }
+  };
+}
+
+
+var arrayStream = ArrayStream();
+arrayStream.subscribe(function(value) {
+  console.log(value);
+});
+
+arrayStream.add('foo');
+arrayStream.add('bar');*/
+
+var obs = SceneSchema();
+
+obs.subscribe(function(foo) {
+  console.log(foo);
+});
+
+
+obs.fetch();
+//new BackgroundLayer();
+//SpriteSchema();
+
+

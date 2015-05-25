@@ -3,7 +3,10 @@
   "version": "0.0.1",
   "description": "Kitties Demo",
   "main": "dist/kitties.js",
-  "dependencies": {},
+  "dependencies": {
+    "rx": "^2.5.2",
+    "rx-dom": "^5.0.4"
+  },
   "devDependencies": {
     "babelify": "^6.0.2",
     "browserify": "^9.0.8",

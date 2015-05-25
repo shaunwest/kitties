@@ -2,27 +2,36 @@
  * Created by shaunwest on 5/9/15.
  */
 
-import SchemaMapper from '../engine/schema/schema-mapper.js';
-import ImageResource from '../engine/resources/image-resource.js';
-import HttpResource from '../engine/resources/http-resource.js';
-import {registerResource, registerValue} from '../engine/schema/helper.js';
+import ObservableSchema from '../engine/schema/observable-schema.js';
+import ObservableResource from '../engine/resources/observable-resource.js';
+import ObservableImage from '../engine/resources/observable-image.js';
+import {registerValue, registerObservable} from '../engine/schema/helper.js';
 
 export default function SceneSchema() {
-  return HttpResource('kitty-world.json')
-    .ready(function(sceneData) {
-      var schema = getSceneSchema();
-      var scene = schema.map(sceneData);
-      console.log(scene);
-      //Scene(scene);
+  var resource = ObservableResource('assets/kitty-world.json');
+
+  var subscription = resource.subscribe(function(data) {
+    var sceneSchema = getSceneSchema(data);
+
+    sceneSchema.subscribe(function(foo) {
+      console.log(foo);
     });
+
+    return sceneSchema;
+  }, function(statusText) {
+    console.log(statusText);
+  });
+
+  resource.fetch();
+
+  return resource;
 }
 
-
-function getSceneSchema() {
-  return new SchemaMapper({
+function getSceneSchema(data) {
+  return ObservableSchema(data, {
     layerDefinitions: {
       background: {
-        backgroundUrl: registerResource('backgroundImage', ImageResource)
+        backgroundUrl: registerObservable('backgroundImage', ObservableImage)
       },
       entities: {
         sprites: registerValue('sprites')

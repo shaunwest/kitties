@@ -86,6 +86,22 @@ export function includeInstance (id) {
   return instances[id];
 }
 
+export function includeWhenInstance(id, cb) {
+  var instance;
+
+  if(typeof id != 'string') {
+    throw 'includeInstanceAsync: a string id is required';
+  }
+
+  instance = includeInstance(id);
+  if(instance) {
+    cb(instance);
+    return;
+  }
+
+  registerCallback(id, cb);
+}
+
 export function includeInstanceAsync(id) {
   var instance;
 

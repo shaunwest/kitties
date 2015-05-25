@@ -33,6 +33,31 @@ export function registerResource(id, resourceFactory, schema) {
   }
 }
 
+export function registerObservable(id, observableFactory, schema) {
+  return function () {
+    return {
+      schema: schema,
+      cb: function (val) {
+        var observable = includeInstance(id);
+        if(!observable) {
+          observable = observableFactory(val);
+          registerInstance(id, observable);
+        }
+
+        observable.subscribe(function(image) {
+          console.log(image);
+        }, function(err) {
+          console.log(err);
+        });
+
+        observable.fetch(val);
+
+        return observable;
+      }
+    }
+  }
+}
+
 export function attachResource(key, resourceFactory) {
   return function(val, container) {
     container[key] = resourceFactory(val);

@@ -6,7 +6,7 @@
   "sceneDepth": 0,
   "layerDefinitions": {
     "background": {
-      "backgroundUrl": "background.png"
+      "backgroundUrl": "assets/background.png"
     },
     "collisions": {
       "colliders": [
