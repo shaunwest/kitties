@@ -6,18 +6,19 @@ import Util from '../util.js';
 import {mergeObject} from '../common.js';
 import Rx from 'rx';
 
-export default function ObservableSchema(data, schema) {
+export default function mapSchema(data, schema) {
   if(typeof schema != 'object' && typeof schema != 'function') {
     throw 'ObservableSchema: schema must be an object or function';
   }
+  return mapValue(data, schema);
 
-  return Rx.Observable.create(function(ob) {
+  /*return Rx.Observable.create(function(ob) {
     ob.onNext(mapValue(data, schema));
 
     return function() {
       console.log('disposed');
     }
-  });
+  });*/
 }
 
 function mapByType(data, schema) {

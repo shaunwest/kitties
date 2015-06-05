@@ -9,6 +9,7 @@
 import inject from '../injector.js';
 import {includeInstanceAsync} from '../container.js';
 
+// this is experimental
 export default function async () {
   var tokens = Array.prototype.slice.call(arguments);
   return inject(tokens.map(token => includeInstanceAsync(token)));

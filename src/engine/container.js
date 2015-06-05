@@ -9,9 +9,7 @@ var callbacks = [];
 // Use arrow => functions
 
 function findSingleton (token) {
-  var results = singletons.filter(function(singleton) {
-    return (token === singleton.token);
-  });
+  var results = singletons.filter(singleton => token === singleton.token);
 
   return (results.length) ? results[0].instance : null;
 }
@@ -21,9 +19,7 @@ function registerCallback (id, callback) {
 }
 
 function findCallbacks (id) {
-  return callbacks.filter(function(callback) {
-    return (id === callback.id);
-  });
+  return callbacks.filter(callback => id === callback.id);
 }
 
 export function useFactory (id, factory) {

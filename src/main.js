@@ -4,13 +4,14 @@
 
 //import ResourceRegistry from './engine/resources/resource-registry.js';
 import {cacheDataElements} from './engine/fragments.js';
-import Resource from './engine/resources/resource.js';
+//import Resource from './engine/resources/resource.js';
 import {getInstances} from './engine/container.js';
-import HttpResource from './engine/resources/http-resource.js';
+//import HttpResource from './engine/resources/http-resource.js';
 import SceneSchema from './schema/scene-schema.js';
-import SpriteSchema from './schema/sprite-schema.js';
+//import SpriteSchema from './schema/sprite-schema.js';
 //import Scene from './scene.js';
 import BackgroundLayer from './layers/background-layer.js';
+import SpriteLayer from './layers/sprite-layer.js';
 //import ObservableResource from '../resources/observable-resource.js';
 import Rx from 'rx';
 
@@ -20,7 +21,7 @@ cacheDataElements();
   return ResourceRegistry.getResources('assets/kitty.json');
 };*/
 
-Resource.baseUri = 'assets';
+//Resource.baseUri = 'assets';
 
 // DEBUG
 //window.Resource = Resource;
@@ -41,48 +42,14 @@ assets.forEach(function(data) { // I guess forEach or Subscribe is needed for th
 });*/
 
 
-
-
-
-
-
-/*function ArrayStream() {
-  var observer;
-  var observable = Rx.Observable.create(function(ob) {
-    observer = ob;
-    return function() {
-      console.log('disposed');
-    }
-  });
-
-  return {
-    add: function(value) {
-      observer.onNext(value);
-      return this;
-    },
-    subscribe: function() {
-      return observable.subscribe.apply(observable, arguments);
-    }
-  };
-}
-
-
-var arrayStream = ArrayStream();
-arrayStream.subscribe(function(value) {
-  console.log(value);
-});
-
-arrayStream.add('foo');
-arrayStream.add('bar');*/
-
 var obs = SceneSchema();
 
-obs.subscribe(function(foo) {
-  console.log(foo);
+obs.subscribe(function(scene) {
+  console.log('Got scene', scene);
 });
 
 
-obs.fetch();
+//obs.fetch();
 //new BackgroundLayer();
 //SpriteSchema();
 

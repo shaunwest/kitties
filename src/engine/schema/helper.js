@@ -4,6 +4,9 @@
 
 import Util from '../util.js';
 import {includeInstance, registerInstance} from '../container.js';
+import ObservableResource from '../resources/observable-resource.js';
+import ResourceFactory from '../resources/resource-factory.js';
+
 
 export function setProp(prop, func) {
   return function(val, container) {
@@ -20,37 +23,76 @@ export function includeResource(id) {
   }
 }
 
-export function registerResource(id, resourceFactory, schema) {
+export function registerResource (id, resourceFactory, schema) {
   return function () {
     return {
       schema: schema,
       cb: function (val) {
         var resource = resourceFactory();
         registerInstance(id, resource);
-        resource.fetch(val);
+        //resource.fetch(val);
       }
     }
   }
 }
 
-export function registerObservable(id, observableFactory, schema) {
+/*export function registerObservable (id, observableFactory, schema) {
   return function () {
     return {
       schema: schema,
       cb: function (val) {
         var observable = includeInstance(id);
         if(!observable) {
-          observable = observableFactory(val);
+          observable = observableFactory();
           registerInstance(id, observable);
         }
 
-        observable.subscribe(function(image) {
-          console.log(image);
-        }, function(err) {
-          console.log(err);
-        });
+        observable.update(val);
 
-        observable.fetch(val);
+        return observable;
+      }
+    }
+  }
+}*/
+
+
+// is this even useful here?
+/*export function registerObservable (id, resource, schema) {
+  return function () {
+    return {
+      schema: schema,
+      cb: function (val) {
+        var observable = includeInstance(id);
+
+        if(!observable) {
+          observable = ObservableResource(resource);
+          registerInstance(id, observable);
+        }
+
+        resource.update(); // should this be here?
+        //observable.update(val);
+
+        return observable;
+      }
+    }
+  }
+}*/
+
+export function registerObservable(id, method, schema) {
+  return function () {
+    return {
+      schema: schema,
+      cb: function (val) {
+        var resource;
+        var observable = includeInstance(id);
+
+        if(!observable) {
+          resource = ResourceFactory(val, method);
+          observable = ObservableResource(resource);
+          registerInstance(id, observable);
+        }
+
+        //resource.update(); // should this be here? Who knows
 
         return observable;
       }

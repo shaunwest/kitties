@@ -5,6 +5,8 @@
 import inject from '../injector.js';
 import {includeWhenInstance} from '../container.js';
 
+// instantiates the associated target class when
+// a provided instance is added to the dependency container
 export default function model (token) {
   return function(target) {
     includeWhenInstance(token, function(instance) {

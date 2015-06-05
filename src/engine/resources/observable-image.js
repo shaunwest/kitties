@@ -58,10 +58,17 @@ export default function ObservableImage (uri) {
     };
   });
 
+  function update (newUri) {
+    uri = newUri;
+    imageLoader.load(uri);
+  }
+
+  if(uri) {
+    update(uri);
+  }
+
   return {
-    fetch: function(newUri) {
-      imageLoader.load(newUri || uri);
-    },
+    update: update,
     subscribe: function() {
       if(observable) {
         return observable.subscribe.apply(observable, arguments);
