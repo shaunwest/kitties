@@ -3,25 +3,27 @@
  */
 
 import fragment from '../engine/decorators/fragment.js';
-import async from '../engine/decorators/async.js';
+import model from '../engine/decorators/model.js';
 import Scheduler from '../engine/scheduler.js';
 import CollisionRenderer from '../engine/renderer/collision-renderer.js';
 import viewport from '../viewport.js';
 
 @fragment('canvas-colliders')
-@async('colliders')
+@model('colliders')
 export default class CollisionLayer {
-  constructor(canvas, collidersPromise) {
+  constructor(canvas, collidersSource) {
     var renderer = new CollisionRenderer(canvas);
 
     Scheduler(function () {
       renderer.draw(viewport);
     });
 
-    collidersPromise.then(function(colliders) {
-     renderer.setColliders(colliders);
+    collidersSource.subscribe(function(collider) {
+      console.log(collider);
     });
 
-    this.renderer = renderer;
+    /*collidersPromise.then(function(colliders) {
+     renderer.setColliders(colliders);
+    });*/
   }
 }

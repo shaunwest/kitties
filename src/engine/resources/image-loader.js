@@ -20,7 +20,7 @@ function waitForImage (image) {
   });
 }
 
-export function getImage (uri) {
+export default function getImage (uri) {
   var image, promise;
 
   image = new Image();

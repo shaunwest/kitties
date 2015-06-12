@@ -8,17 +8,17 @@ import Scheduler from '../engine/scheduler.js';
 import ImageRenderer from '../engine/renderer/image-renderer.js';
 import viewport from '../viewport.js';
 
-@model('backgroundImage')
 @fragment('canvas-background')
-class BackgroundLayer {
-  constructor (canvas, backgroundImageObservable) {
+@model('backgroundImage')
+export default class BackgroundLayer {
+  constructor (canvas, backgroundImageSource) {
     var renderer = new ImageRenderer(canvas);
 
     Scheduler(function () {
       renderer.draw(viewport);
     });
 
-    backgroundImageObservable.subscribe(function(image) {
+    backgroundImageSource.subscribe(function(image) {
       renderer.setImage(image);
     });
   }

@@ -1,22 +1,16 @@
 /**
- * Created by shaunwest on 5/9/15.
+ * Created by shaunwest on 5/23/15.
  */
 
 import Util from '../util.js';
 import {mergeObject} from '../common.js';
+import Rx from 'rx';
 
-export default class SchemaMapper {
-  constructor (schema) {
-    if(typeof schema != 'object' && typeof schema != 'function') {
-      throw 'SchemaMapper: schema must be an object or function';
-    }
-
-    this.schema = schema;
+export default function mapSchema(data, schema) {
+  if(typeof schema != 'object' && typeof schema != 'function') {
+    throw 'ObservableSchema: schema must be an object or function';
   }
-
-  map (data) {
-    return mapValue(data, this.schema);
-  }
+  return mapValue(data, schema);
 }
 
 function mapByType(data, schema) {

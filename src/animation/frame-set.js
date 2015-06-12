@@ -34,10 +34,10 @@ function buildFrameSequence(frameSetDefinition, frameSize, spriteSheet) {
 
 export default function (spriteDefinition, spriteSheet) {
   return Object
-    .keys(spriteDefinition.frameSet)
+    .keys(spriteDefinition.animations)
     .reduce(function(frameSet, frameSetId) {
       var frameSequence = buildFrameSequence(
-        spriteDefinition.frameSet[frameSetId],
+        spriteDefinition.animations[frameSetId],
         spriteDefinition.frameSize,
         spriteSheet
       );

@@ -38,12 +38,11 @@ export function Fragments (name) {
   if(!allDataElements) {
     cacheDataElements();
   }
-  return allDataElements.reduce(function(result, element) {
+  return allDataElements.filter(function(element) {
     if(element.hasAttribute('data-' + name)) {
-      result.push(element);
+      return element;
     }
-    return result;
-  }, []);
+  });
 }
 
 export function Fragment (name) {

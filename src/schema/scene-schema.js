@@ -2,49 +2,40 @@
  * Created by shaunwest on 5/9/15.
  */
 
-import mapSchema from '../engine/schema/observable-schema.js';
-import ObservableResource from '../engine/resources/observable-resource.js';
-//import ObservableImage from '../engine/resources/observable-image.js';
-//import ObservableArray from '../engine/resources/observable-array.js';
-import ResourceFactory from '../engine/resources/resource-factory.js';
+import mapSchema from '../engine/schema/schema-mapper.js';
 import {registerObservable} from '../engine/schema/helper.js';
-import {registerValue} from '../engine/schema/helper.js';
 import {includeInstance, registerInstance} from '../engine/container.js';
-import {getImage} from '../engine/resources/image-loader.js';
+import getImage from '../engine/resources/image-loader.js';
 import {requestGet} from '../engine/kjax.js';
 import SpriteSchema from '../schema/sprite-schema.js';
+import spriteAnimation from '../animation/sprite-animation.js';
 import Rx from 'rx';
 
 
-export default function SceneSchema() {
-  /*var resource = ResourceFactory('assets/kitty-world.json', requestGet);
-  var observable = ObservableResource(resource);
-
-  var subscription = observable.subscribe(function(response) {
-    var sceneSchema = getSceneSchema(response.data);
-
-    sceneSchema.subscribe(function(scene) {
-      // can do stuff with scene here
-      //console.log(scene);
-    });
-
-    return sceneSchema;
-  }, function(statusText) {
-    console.log(statusText);
-  });
-
-  return observable;*/
-
-  /*var source = Rx.Observable.create(function (observable) {
-    requestGet('assets/kitty-world.json')
-      .then(function(response) {
-        observable.onNext(response.data);
-      });
-  });*/
-
-  return Rx.Observable.fromPromise(requestGet('assets/kitty-world.json'))
+export default function SceneSchema(uri) {
+  return Rx.Observable
+    .fromPromise(requestGet(uri))
     .flatMap(function(response) {
       return getSceneSchema(response.data);
+    });
+}
+
+function createSpritesObservable(sprites) {
+  return Rx.Observable
+    .create(function (observable) {
+      sprites.forEach(function(sprite) {
+        observable.onNext(sprite);
+      })
+    })
+    .selectMany(function (sprite) {
+      return SpriteSchema(sprite.srcId)
+        .flatMap(function(type) {
+          sprite.type = type;
+          return type.spriteSheet.select(function(spriteSheet) {
+            sprite.animation = spriteAnimation(type.frameSet);
+            return sprite;
+          });
+        });
     });
 }
 
@@ -52,91 +43,72 @@ export default function SceneSchema() {
   return function () {
     return {
       schema: schema,
-      cb: function (val) {
-        var observable = includeInstance(id);
+      cb: function (sprites) {
+        var source = includeInstance(id);
 
-        if(!observable) {
-          //observable = ObservableArray();
-          registerInstance(id, observable);
+        if(!source) {
+          source = createSpritesObservable(sprites);
+          registerInstance(id, source);
         }
-
-        observable.subscribe(function(sprites) {
-          return sprites;
-        });
-
-        observable.update(val);
-
-        return observable;
       }
-    }
+    };
   }
 }*/
 
-function registerSprites(id, method, schema) {
+function registerSprites(id, schema) {
   return function () {
     return {
       schema: schema,
       cb: function (sprites) {
-        var resource;
-        var source = includeInstance(id);
+        var subject = includeInstance(id);
+        var source = createSpritesObservable(sprites);
+        source.subscribe(subject);
+      }
+    };
+  }
+}
 
-        if(!source) {
-          //resource = ResourceFactory(val, method);
-          //observable = ObservableResource(resource);
-          source = Rx.Observable.create(function (observable) {
-            sprites.forEach(function(sprite) {
-              observable.onNext(sprite);
-            })
+function registerArray(id) {
+  return function() {
+    return {
+      schema: null,
+      cb: function (array) {
+        var subject = includeInstance(id); // FIXME: assumes the subject is registered already
+        var source = Rx.Observable.create(function(observable) {
+          array.forEach(function(val) {
+            observable.onNext(val);
           });
+        });
+        source.subscribe(subject);
+      }
+    };
+  }
+}
 
-          source = source.selectMany(function(sprite) {
-            return SpriteSchema().select(function(type) {
-              sprite.type = type;
-              return sprite;
-            });
-          });
-
-          registerInstance(id, source);
-        }
+function registerPromise(id, promiseFactory, schema) {
+  return function() {
+    return {
+      schema: schema,
+      cb: function (val) {
+        var subject = includeInstance(id);
+        var source = Rx.Observable.fromPromise(promiseFactory(val));
+        source.subscribe(subject);
       }
     }
   }
 }
-
-function passthru(val) {
-  return val;
-}
-
-/*function getSprites(sprites) {
-  sprites.forEach(function(sprite) {
-    var observable = SpriteSchema();
-
-    observable.subscribe(function(spriteType) {
-      //sprite.spriteType = spriteType;
-      //return sprite;
-      console.log(spriteType);
-    });
-
-    //return observable;
-    sprite.spriteType = observable;
-    return sprite;
-  });
-  return sprites;
-}*/
 
 function getSceneSchema(data) {
   var schema = {
     layerDefinitions: {
       background: {
-        //backgroundUrl: registerObservable('backgroundImage', ObservableImage)
-        backgroundUrl: registerObservable('backgroundImage', getImage)
+        backgroundUrl: registerPromise('backgroundImage', getImage)
       },
       entities: {
-        //sprites: registerObservable('sprites', getSprites)
-        sprites: registerSprites('sprites', passthru)
+        sprites: registerSprites('sprites')
       },
       collisions: {
-        //colliders: registerObservable('colliders')
+        colliders: registerArray('colliders')
       }
     }
   };

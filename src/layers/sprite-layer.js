@@ -8,34 +8,22 @@ import Scheduler from '../engine/scheduler.js'
 import SpriteRenderer from '../engine/renderer/sprite-renderer.js'
 import viewport from '../viewport.js'
 
-@model('sprites')
 @fragment('canvas-entities')
+@model('sprites')
 export default class SpriteLayer {
-  constructor(canvas, spritesObservable) {
+  constructor(canvas, spritesSource) {
     var renderer = new SpriteRenderer(canvas);
 
     Scheduler(function () {
       renderer.draw(viewport);
     });
 
-    spritesObservable.subscribe(function(sprite) {
+    spritesSource.subscribe(function(sprite) {
       renderer.clear();
-      console.log(sprite);
-      /*sprites.forEach(function(sprite) {
-        console.log(sprite);
-        // not quite right... each individual sprite should have its own animation object
-        //spriteTypesPromise.then(function(spriteTypes) {
-        //  var spriteType = spriteTypes[sprite.srcId];
-        //
-        //  spriteType.spriteSheet.ready(function() {
-        //    spriteType.animation.play('run');
-        //    renderer.addEntity(spriteType);
-        //  });
-        //});
-      });*/
+      console.log('asdf');
+      sprite.animation.play('run');
+      renderer.addEntity(sprite);
     });
-
-    this.renderer = renderer;
   }
 }
 
