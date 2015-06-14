@@ -4,14 +4,16 @@
 
 import fragment from '../engine/decorators/fragment.js';
 import model from '../engine/decorators/model.js';
+import use from '../engine/decorators/use.js';
 import Scheduler from '../engine/scheduler.js';
 import CollisionRenderer from '../engine/renderer/collision-renderer.js';
-import viewport from '../viewport.js';
+import Viewport from '../viewport.js';
 
+@use(Viewport)
 @fragment('canvas-colliders')
 @model('colliders')
 export default class CollisionLayer {
-  constructor(canvas, collidersSource) {
+  constructor(viewport, canvas, collidersSource) {
     var renderer = new CollisionRenderer(canvas);
 
     Scheduler(function () {

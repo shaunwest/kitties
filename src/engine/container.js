@@ -2,11 +2,11 @@
  * Created by shaunwest on 4/30/15.
  */
 
+import {mergeObject} from './common.js';
+
 var instances = {};
 var singletons = [];
 var callbacks = [];
-
-// Use arrow => functions
 
 function findSingleton (token) {
   var results = singletons.filter(singleton => token === singleton.token);
@@ -47,11 +47,16 @@ export function registerFactory (id, factory) {
 export function registerSingleton (token) {
   var instance;
 
-  if(typeof token != 'function') {
+  if(typeof token != 'function' && typeof token != 'object') {
     throw 'registerSingleton: argument must be a function';
   }
 
-  instance = new token();
+  if(typeof token == 'object') {
+    instance = mergeObject(token);
+  } else {
+    instance = new token();
+  }
+
   if (instance) {
     singletons.push({
       token: token,

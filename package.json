@@ -5,7 +5,8 @@
   "main": "dist/kitties.js",
   "dependencies": {
     "rx": "^2.5.2",
-    "rx-dom": "^5.0.4"
+    "rx-dom": "^5.0.4",
+    "whatwg-fetch": "^0.9.0"
   },
   "devDependencies": {
     "babelify": "^6.0.2",

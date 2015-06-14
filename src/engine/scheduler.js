@@ -10,6 +10,7 @@ import {mergeObject} from './common.js';
 var instance;
 var ONE_SECOND = 1000;
 
+// get rid of instance stuff. Just use the di container's registerSingleton/use
 function Scheduler(cb, rate) {
   if(!instance) {
     instance = create();

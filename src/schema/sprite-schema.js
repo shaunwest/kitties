@@ -2,20 +2,11 @@
  * Created by shaunwest on 5/9/15.
  */
 
-import mapSchema from '../engine/schema/schema-mapper.js';
 import frameSet from '../animation/frame-set.js';
-import {registerValue} from '../engine/schema/helper.js';
-import {requestGet} from '../engine/kjax.js';
-import getImage from '../engine/resources/image-loader.js';
+import {registerValue} from '../engine/schema/register.js';
+import fetchSchema from '../engine/schema/fetch-schema.js';
+import getImage from '../engine/image-loader.js';
 import Rx from 'rx';
-
-export default function SpriteSchema(uri) {
-  return Rx.Observable
-    .fromPromise(requestGet(uri))
-    .flatMap(function(response) {
-      return getSpriteSchema(response.data);
-    });
-}
 
 function createAnimation(schema) {
   return function(data, container) {
@@ -33,16 +24,8 @@ function createAnimation(schema) {
   }
 }
 
-function getSpriteSchema(data) {
-  var schema = registerValue('spriteTypes', {
+export default function getSpriteSchema(uri) {
+  return fetchSchema(uri, registerValue('spriteTypes', {
     spriteSheetUrl: createAnimation()
-  });
-
-  return Rx.Observable.create(function(ob) {
-    ob.onNext(mapSchema(data, schema));
-
-    return function() {
-      console.log('disposed');
-    }
-  });
+  }));
 }

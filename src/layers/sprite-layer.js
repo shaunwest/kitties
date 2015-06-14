@@ -4,14 +4,16 @@
 
 import model from '../engine/decorators/model.js'
 import fragment from '../engine/decorators/fragment.js'
+import use from '../engine/decorators/use.js'
 import Scheduler from '../engine/scheduler.js'
 import SpriteRenderer from '../engine/renderer/sprite-renderer.js'
-import viewport from '../viewport.js'
+import Viewport from '../viewport.js'
 
+@use(Viewport)
 @fragment('canvas-entities')
 @model('sprites')
 export default class SpriteLayer {
-  constructor(canvas, spritesSource) {
+  constructor(viewport, canvas, spritesSource) {
     var renderer = new SpriteRenderer(canvas);
 
     Scheduler(function () {
@@ -20,7 +22,6 @@ export default class SpriteLayer {
 
     spritesSource.subscribe(function(sprite) {
       renderer.clear();
-      console.log('asdf');
       sprite.animation.play('run');
       renderer.addEntity(sprite);
     });
