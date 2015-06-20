@@ -34,18 +34,53 @@ function registerSprites(id, schema) {
   });
 }
 
-/*function getSprites(id, schema) {
+function getSprites(id, schema) {
+  return function(val, container) {
+    return {
+      schema: schema,
+      cb: function (sprites) {
+        container['spritesSource'] = Rx.Observable
+          .create(function (observable) {
+            sprites.forEach(function(sprite) {
+              observable.onNext(sprite);
+            })
+          })
+          .selectMany(function (sprite) {
+            return getSpriteSchema(sprite.srcId)
+              .flatMap(function(type) {
+                sprite.type = type;
+                return type.spriteSheet.select(function(spriteSheet) {
+                  sprite.animation = spriteAnimation(type.frameSet);
+                  return sprite;
+                });
+              });
+          });
+      }
+    };
+  }
+}
 
-}*/
+function getBackground(id, promiseFactory, schema) {
+  return function(val, container) {
+    return {
+      schema: schema,
+      cb: function (backgroundUrl) {
+        container['backgroundSource'] = Rx.Observable
+          .fromPromise(promiseFactory(backgroundUrl));
+      }
+    }
+  }
+}
 
 export default function getSceneSchema(uri) {
   return fetchSchema(uri, {
     layerDefinitions: {
       background: {
-        backgroundUrl: registerPromise('backgroundImage', getImage)
+        //backgroundUrl: registerPromise('backgroundImage', getImage)
+        backgroundUrl: getBackground('backgroundImage', getImage)
       },
       entities: {
-        sprites: registerSprites('sprites')
+        sprites: getSprites('sprites')
       },
       collisions: {
         colliders: registerArray('colliders')

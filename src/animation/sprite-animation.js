@@ -1,7 +1,7 @@
 import Scheduler from '../engine/scheduler.js';
 
 export default function (frameSet) {
-  var currentFrameSequence = null,
+  var currentFrameSequence = frameSet['run'], //null,
     currentFrameIndex = 0,
     currentFrame = null,
     frameCallback = null;
@@ -49,6 +49,13 @@ export default function (frameSet) {
       return currentFrameIndex;
     },
     getImage: function() {
+      return currentFrame;
+    },
+    getNext: function() {
+      currentFrame = currentFrameSequence.frames[currentFrameIndex];
+      if(++currentFrameIndex >= currentFrameSequence.frames.length) {
+        currentFrameIndex = 0;
+      }
       return currentFrame;
     }
   };
