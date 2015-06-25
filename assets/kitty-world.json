@@ -4,6 +4,9 @@
   "sceneWidth": 600,
   "sceneHeight": 400,
   "sceneDepth": 0,
+  "foo": {
+    "bar": "baz"
+  },
   "layerDefinitions": {
     "background": {
       "backgroundUrl": "assets/background.png"
