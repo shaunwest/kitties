@@ -2,7 +2,7 @@
  * Created by shaunwest on 6/20/15.
  */
 
-export default function Scheduler() {
+/*export default function Scheduler() {
   let running = false, callbacks = [];
 
   function frameLoop() {
@@ -36,6 +36,28 @@ export default function Scheduler() {
       return this;
     }
   };
+}*/
+
+export default function Frame() {
+  var cbs = [];
+
+  (function frameLoop() {
+    window.requestAnimationFrame(function () {
+      var fps = 30;
+      cbs = cbs
+        .map(function (cb) {
+          return cb(fps) && cb;
+        })
+        .filter(function (cb) {
+          return cb;
+        });
+      frameLoop();
+    });
+  })();
+
+  return function (cb) {
+    cbs.push(cb);
+  }
 }
 
 

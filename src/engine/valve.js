@@ -136,12 +136,12 @@ export default class Valve {
     return handleAll(thenables, true);
   }
 
-  clone() {
+  clone(onSuccess, onFailure) {
     var newValve = new Valve(this.executor);
     newValve.listeners = cloneArray(this.listeners);
     newValve.attached = cloneArray(this.attached);
     newValve.started = this.started;
-    return newValve;
+    return (onSuccess) ? newValve.then(onSuccess, onFailure) : newValve;
   }
 
   attach(value) {

@@ -10,6 +10,7 @@
     "width": 32,
     "height": 32
   },
+  "defaultAi": "kitty",
   "animations": {
     "run": {
       "rate": 10,
