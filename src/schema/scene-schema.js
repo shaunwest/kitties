@@ -6,21 +6,9 @@ import fetchJSON from '../engine/schema/fetch-schema.js';
 import getImage from '../engine/image-loader.js';
 import getSpriteSchema from '../schema/sprite-schema.js';
 import spriteAnimation from '../animation/sprite-animation.js';
-import mapSchema from '../engine/schema/schema-mapper.js';
-import {setProp} from '../engine/schema/register.js';
 
 export default function getSceneSchema(uri) {
   return fetchJSON(uri)
-    /*.then(function (json) {
-      return mapSchema(json, {
-        background: {
-          backgroundUrl: setProp('backgroundSource', getImage)
-        },
-        entities: {
-          sprites: setProp('spritesSource', getSpriteTypes)
-        }
-      });
-    })*/
     .then(function (scene) {
       return getImage(scene.background.backgroundUrl)
         .then(function (backgroundImage) {
@@ -45,12 +33,16 @@ function getSpriteType(sprite) {
   return getSpriteSchema(sprite.srcUrl)
     .then(function(type) {
       sprite.type = type;
-      /*return type.spriteSheet
-        .then(function(spriteSheet) {
-          sprite.animation = spriteAnimation(type.frameSet);
-          return sprite;
-        });*/
-      sprite.animation = spriteAnimation(type.frameSet);
+      //sprite.animation = spriteAnimation(type.frameSet);
+      sprite.animation = {};
+      sprite.velocityX = 0;
+      sprite.velocityY = 500;
+      sprite.accelerationX = 0;
+      sprite.accelerationY = 0;
+      sprite.maxVelocityX = 500;
+      sprite.maxVelocityY = 500;
+      sprite.frictionX = 0.99;
+      sprite.frictionY = 0.50;
       return sprite;
     });
 }

@@ -14,7 +14,7 @@
     {
       "ai": "kitty",
       "srcUrl": "assets/kitty.json",
-      "x": 0,
+      "x": 16,
       "y": 0,
       "width": 32,
       "height": 32

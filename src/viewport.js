@@ -5,6 +5,8 @@
 export default {
   x: 0,
   y: 0,
-  width: 600,
+  marginLeft: 64,
+  marginRight: 64,
+  width: 300,
   height: 400
 };

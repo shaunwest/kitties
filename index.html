@@ -4,11 +4,19 @@
   <meta charset="UTF-8">
   <title>Kitties Demo</title>
   <style>
-    .stage { width: 600px; height: 400px; background-color: #969696; }
-    .layer { position: absolute; }
+    .stage {
+        width: 600px;
+        height: 400px;
+        background-color: #969696;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+    }
+    .layer { position: absolute; width: 600px; height: 400px; }
+    .fps { width: 100px; height: 25px; }
   </style>
 </head>
 <body>
+  <div class="fps" data-fps>0</div>
   <div class="stage">
     <canvas data-canvas-background class="layer" width="600" height="400"></canvas>
     <canvas data-canvas-entities class="layer" width="600" height="400"></canvas>
