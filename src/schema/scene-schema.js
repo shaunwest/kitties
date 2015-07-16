@@ -35,14 +35,10 @@ function getSpriteType(sprite) {
       sprite.type = type;
       //sprite.animation = spriteAnimation(type.frameSet);
       sprite.animation = {};
-      sprite.velocityX = 0;
-      sprite.velocityY = 500;
-      sprite.accelerationX = 0;
-      sprite.accelerationY = 0;
-      sprite.maxVelocityX = 500;
-      sprite.maxVelocityY = 500;
-      sprite.frictionX = 0.99;
-      sprite.frictionY = 0.50;
+      sprite.velocity = { x: 0, y: 0 };
+      sprite.acceleration = { x: 0, y: 0 };
+      sprite.maxVelocity = { x: 500, y: 500 };
+      sprite.friction = { x: 0.99, y: 0.50 };
       return sprite;
     });
 }

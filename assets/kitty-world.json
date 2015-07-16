@@ -8,8 +8,8 @@
     "backgroundUrl": "assets/background.png"
   },
   "colliders": [
-    { "x": 0, "y": 368, "width": 600, "height": 32 },
-    { "x": 200, "y": 336, "width": 100, "height": 32 }
+    { "x": 100, "y": 336, "width": 100, "height": 48 },
+    { "x": 100, "y": 384, "width": 100, "height": 16 }
   ],
   "sprites": [
     {

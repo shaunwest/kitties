@@ -7,7 +7,7 @@ import getSceneSchema from './schema/scene-schema.js';
 import Frame from './engine/frame.js';
 import Input from './engine/input.js';
 import Viewport from './viewport.js';
-import {clearContext} from './canvas-renderer.js';
+import {clearContext, render, renderRects} from './canvas-renderer.js';
 import {sequence} from './func.js';
 
 const scene = getSceneSchema('assets/kitty-world.json');
@@ -38,35 +38,35 @@ function applyAcceleration(velocity, acceleration, elapsed) {
   return velocity + (acceleration * elapsed);
 }
 
-function getPositionDelta(val, velocity, elapsed) {
-  return val + Math.round(velocity * elapsed);
+function getPositionDelta(position, velocity, elapsed) {
+  return position + Math.round(velocity * elapsed);
 }
 
-function getVelocityX(sprite, elapsed) {
-  const velX0 = halt(sprite.velocityX, 1);
-  const velX1 = applyAcceleration(velX0, sprite.accelerationX, elapsed);
-  const velX2 = applyFriction(velX1, sprite.frictionX, elapsed);
-  return clampVelocity(velX2, sprite.maxVelocityX);
+function getVelocity(sprite, dim, elapsed) {
+  let velocity = halt(sprite.velocity[dim], 1);
+  velocity = applyAcceleration(velocity, sprite.acceleration[dim], elapsed);
+  velocity = applyFriction(velocity, sprite.friction[dim], elapsed);
+  return clampVelocity(velocity, sprite.maxVelocity[dim]);
 }
 
-function getVelocityY(sprite, elapsed) {
-  const velY0 = halt(sprite.velocityY, 1);
-  const velY1 = applyAcceleration(velY0, sprite.accelerationY, elapsed);
-  const velY2 = applyFriction(velY1, sprite.frictionY, elapsed);
-  return clampVelocity(velY2, sprite.maxVelocityY);
-}
-
-function getInnerDiff(val, size, minBound, maxBound) {
-  const max = val + size;
-  return (val < minBound && val - minBound ||
+function getInnerDiff(position, size, minBound, maxBound) {
+  const max = position + size;
+  return (position < minBound && position - minBound ||
     max > maxBound && max - maxBound ||
     0);
 }
 
-function getOuterDiff(val, size, minBound, maxBound) {
-  const max = val + size;
-  return (val < minBound && max > minBound && max - minBound ||
-    val < maxBound && max > maxBound && val - maxBound ||
+/*function getOuterDiff(position, size, minBound, maxBound) {
+  const max = position + size;
+  return (position < minBound && max > minBound && max - minBound ||
+    position < maxBound && max > maxBound && position - maxBound ||
+    0);
+}*/
+
+function getOuterDiff(position, size, minBound, maxBound) {
+  const max = position + size;
+  return (position < minBound && max > minBound && max - minBound ||
+    position < maxBound && max > maxBound && position - maxBound ||
     0);
 }
 
@@ -74,39 +74,73 @@ function resolveCollision(diff, val) {
   return val - diff;
 }
 
-/*function getCollisionResolve(colliders, sprite) {
-  return colliders
-    .reduce(function (resolve, collider) {
-      const diffX = (sprite.y >= collider.y && sprite.y <= collider.y + collider.height) ?
-        getOuterDiff(
-          sprite.x,
-          sprite.width,
-          collider.x,
-          collider.x + collider.width
-        ) : 0;
+function getCollidersInRange(rangeMin, rangeMax, colliders) {
+  return colliders.filter(function (collider) {
+    return inRange(rangeMin, rangeMax, collider);
+  });
+}
 
-      resolve.x = (diffX) ? resolveCollision(diffX, sprite.x) : resolve.x;
+function inRange(rangeMin, rangeMax, collider) {
+  return (rangeMin < collider.rangeMax &&
+    rangeMax > collider.rangeMin);
+}
 
-      const diffY = (sprite.x >= collider.x && sprite.x <= collider.x + collider.width) ?
-        getOuterDiff(
-          sprite.y,
-          sprite.height,
-          collider.y,
-          collider.y + collider.height
-        ) : 0;
+function getMinPositionDiff(min, colliderMax) {
+  return colliderMax - min;
+}
 
-      resolve.y = (diffY) ? resolveCollision(diffY, sprite.y) : resolve.y;
+function getMaxPositionDiff(max, colliderMin) {
+  return colliderMin - max;
+}
 
-      return resolve;
-    }, {x: sprite.x, y: sprite.y});
-}*/
-
-function getCollisionResolve(colliders, position, range, size) {
+function getIntersectedColliders(colliders, positionMin, positionMax, rangeMin, rangeMax) {
   return colliders
     .filter(function (collider) {
-      return (range >= collider.rangeMin && range <= collider.rangeMax);
+      return (rangeMin < collider.rangeMax &&
+        rangeMax > collider.rangeMin);
     })
-    .reduce(function (positionDelta, collider) {
+    .map(function (collider) {
+      return {
+        positionMin: collider.positionMax - positionMin,
+        positionMax: collider.positionMin - positionMax
+      };
+    })
+    .filter(function (diff) {
+      return (diff.positionMin > 0 && diff.positionMax < 0);
+    })
+    .map(function (diff) {
+      return Math.max(diff.positionMin, diff.positionMax);
+    });
+
+    /*.filter(collider =>
+      rangeMin <= collider.rangeMax &&
+      rangeMax >= collider.rangeMin &&
+      positionMin <= collider.positionMax &&
+      positionMax >= collider.positionMin
+    );*/
+}
+
+function resolveCollisions(position, colliders) {
+  // fixme: not returning??
+  colliders.reduce(function (positionDelta, collider) {
+    const diff = getOuterDiff(
+      position,
+      size,
+      collider.positionMin,
+      collider.positionMax
+    );
+    return (diff) ?
+        position - diff :
+        positionDelta;
+  }, position);
+}
+
+function getCollisionResolve(colliders, position, size, rangeMin, rangeMax) {
+  return colliders
+    .filter(collider =>
+      rangeMin <= collider.rangeMax && rangeMax >= collider.rangeMin
+    )
+    .reduce((positionDelta, collider) => {
       const diff = getOuterDiff(
           position,
           size,
@@ -119,33 +153,6 @@ function getCollisionResolve(colliders, position, range, size) {
         positionDelta;
     }, position);
 }
-
-/*function getCollisionResolveY() {
-   return colliders
-    .reduce(function (resolve, collider) {
-      const diffX = (sprite.y >= collider.y && sprite.y <= collider.y + collider.height) ?
-        getOuterDiff(
-          sprite.x,
-          sprite.width,
-          collider.x,
-          collider.x + collider.width
-        ) : 0;
-
-      resolve.x = (diffX) ? resolveCollision(diffX, sprite.x) : resolve.x;
-
-      const diffY = (sprite.x >= collider.x && sprite.x <= collider.x + collider.width) ?
-        getOuterDiff(
-          sprite.y,
-          sprite.height,
-          collider.y,
-          collider.y + collider.height
-        ) : 0;
-
-      resolve.y = (diffY) ? resolveCollision(diffY, sprite.y) : resolve.y;
-
-      return resolve;
-    }, {x: sprite.x, y: sprite.y});
-}*/
 
 function applyAnimation(sprite) {
   const sequence = sprite.type.frameSet[getAnimation(sprite)];
@@ -169,17 +176,6 @@ function getFrame(index, sequence) {
   return sequence.frames[index];
 }
 
-function render(context2d, point, image, viewport) {
-  if(!image) {
-    return;
-  }
-  context2d.drawImage(
-    image,
-    point.x - viewport.x || 0,
-    point.y - viewport.y || 0
-  );
-}
-
 const getInputs = Input();
 const getFrames = Frame();
 const viewport = Viewport;
@@ -201,8 +197,12 @@ scene
     const context2d = canvas.getContext('2d');
     const colliders = Object.freeze(scene.colliders);
 
-    const collidersX = colliders.map(function (collider) {
+    const collidersX = colliders.map(collider => {
       return {
+        x: collider.x,
+        y: collider.y,
+        width: collider.width,
+        height: collider.height,
         positionMin: collider.x,
         positionMax: collider.x + collider.width,
         rangeMin: collider.y,
@@ -210,8 +210,12 @@ scene
       };
     });
 
-    const collidersY = colliders.map(function (collider) {
+    const collidersY = colliders.map(collider => {
       return {
+        x: collider.x,
+        y: collider.y,
+        width: collider.width,
+        height: collider.height,
         positionMin: collider.y,
         positionMax: collider.y + collider.height,
         rangeMin: collider.x,
@@ -227,32 +231,75 @@ scene
 
       const inputs = getInputs();
 
+      player.velocity.y = 300;
+
       if (inputs[37]) {
-        player.velocityX = -100;
+        player.velocity.x = -100;
       } else if (inputs[39]) {
-        player.velocityX = 100;
+        player.velocity.x = 100;
+      }
+
+      if (inputs[38]) {
+        player.velocity.y = -500;
       }
 
       sprites.forEach(function (sprite) {
-        const velocityX = getVelocityX(sprite, elapsed);
+        const velocityX = getVelocity(sprite, 'x', elapsed);
         const x = getPositionDelta(sprite.x, velocityX, elapsed);
+
         const boundsDiffX = getInnerDiff(x, sprite.width, 0, sceneBounds.width);
-        const x2 = resolveCollision(boundsDiffX, x);
+        const x1 = resolveCollision(boundsDiffX, x);
 
-        sprite.velocityX = velocityX;
+        const velocityY = getVelocity(sprite, 'y', elapsed);
+        const y = getPositionDelta(sprite.y, velocityY, elapsed);
+
+        const boundsDiffY = getInnerDiff(y, sprite.height, 0, sceneBounds.height);
+        const y1 = resolveCollision(boundsDiffY, y);
+
+        let x2 = x1;
+        let y2 = y1;
+
+        let vals = getCollidersInRange(y1, y1 + sprite.height, collidersX)
+          .map(function (collider) {
+            let maxDiff = getMaxPositionDiff(x1 + sprite.width, collider.positionMin);
+            let minDiff = getMinPositionDiff(x1, collider.positionMax);
+
+            return (Math.min(Math.abs(maxDiff), Math.abs(minDiff)));
+          });
+
+        console.log(vals);
+
+        //const x2 = getCollisionResolve(collidersX, x1, sprite.width, y1, y1 + sprite.height);
+        //const y2 = getCollisionResolve(collidersY, y1, sprite.height, x1, x1 + sprite.width);
+
+        /*const intersectedCollidersX = getIntersectedColliders(
+          collidersX,
+          x1, x1 + sprite.width,
+          y1, y1 + sprite.height
+        );
+
+        console.log('X', intersectedCollidersX);
+
+        const x2 = (intersectedCollidersX.length) ? x1 + Math.min.apply(null, intersectedCollidersX) : x1;
+
+        const intersectedCollidersY = getIntersectedColliders(
+          collidersY,
+          y1, y1 + sprite.height,
+          x2, x2 + sprite.width
+        );
+
+        console.log('Y', intersectedCollidersY);
+
+        const y2 = (intersectedCollidersY.length) ? y1 + Math.min.apply(null, intersectedCollidersY) : y1;*/
+        //const intersectedCollidersY = getIntersectedColliders(collidersY, y1, y1 + sprite.height, x1, x1 + sprite.width);
+        //const x2 = resolveCollisions(x1, intersectionsX);
+        //const y2 = resolveCollisions(y1, intersectionsY);
+
+        // mutate sprite
+        sprite.velocity.x = velocityX;
         sprite.x = x2;
-
-        sprite.velocityY = getVelocityY(sprite, elapsed);
-        sprite.y = getPositionDelta(sprite.y, sprite.velocityY, elapsed);
-        const diffY = getInnerDiff(sprite.y, sprite.height, 0, sceneBounds.height);
-        sprite.y = resolveCollision(diffY, sprite.y);
-
-        //const resolve = getCollisionResolve(colliders, sprite);
-        const resolveX = getCollisionResolve(collidersX, sprite.x, sprite.y, sprite.width);
-        sprite.x = resolveX;
-
-        const resolveY = getCollisionResolve(collidersY, sprite.y, sprite.x, sprite.height);
-        sprite.y = resolveY;
+        sprite.velocity.y = velocityY;
+        sprite.y = y2;
 
         if (sprite === player) {
           const minMargin = viewport.marginLeft;
@@ -264,9 +311,10 @@ scene
             viewport.x + maxMargin
           );
 
-          if (viewportDiffX > 0 && sprite.velocityX > 0) {
+          // mutate viewport
+          if (viewportDiffX > 0 && sprite.velocity.x > 0) {
             viewport.x = getPositionFromMaxMargin(sprite.x, sprite.width, maxMargin);
-          } else if (viewportDiffX < 0 && sprite.velocityX < 0) {
+          } else if (viewportDiffX < 0 && sprite.velocity.x < 0) {
             viewport.x = getPositionFromMinMargin(sprite.x, minMargin);
           }
         }
@@ -275,6 +323,9 @@ scene
         const pos = {x: sprite.x, y: sprite.y};
 
         render(context2d, pos, frame, viewport);
+        renderRects(context2d, colliders, viewport);
+        //renderRects(context2d, intersectedColliders, viewport, '#ff0000');
+        renderRects(context2d, sprites, viewport);
       });
 
       return true;
@@ -290,7 +341,7 @@ scene
 
     getFrames(function () {
       clearContext(context2d, canvas.width, canvas.height);
-      render(context2d, {x: 0, y: 0}, backgroundImage, viewport);
+      //render(context2d, {x: 0, y: 0}, backgroundImage, viewport);
       return true;
     });
     return scene;
