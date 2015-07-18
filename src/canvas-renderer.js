@@ -24,3 +24,12 @@ export function renderRects(context2d, rects, viewport, color) {
     context2d.strokeRect(rect.x - viewport.x, rect.y - viewport.y, rect.width, rect.height);
   });
 }
+
+export function renderLines(context2d, lines, viewport) {
+  lines.forEach(function (line) {
+    context2d.beginPath();
+    context2d.moveTo(line.x1 - viewport.x, line.y1 - viewport.y);
+    context2d.lineTo(line.x2 - viewport.x, line.y2 - viewport.y);
+    context2d.stroke();
+  });
+}

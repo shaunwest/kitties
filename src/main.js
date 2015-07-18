@@ -7,7 +7,7 @@ import getSceneSchema from './schema/scene-schema.js';
 import Frame from './engine/frame.js';
 import Input from './engine/input.js';
 import Viewport from './viewport.js';
-import {clearContext, render, renderRects} from './canvas-renderer.js';
+import {clearContext, render, renderRects, renderLines} from './canvas-renderer.js';
 import {sequence} from './func.js';
 
 const scene = getSceneSchema('assets/kitty-world.json');
@@ -176,6 +176,117 @@ function getFrame(index, sequence) {
   return sequence.frames[index];
 }
 
+function getSlope(line) {
+  const denom = (line.x2 - line.x1);
+  return (line.y2 - line.y1) / denom;
+}
+
+function lineIntersectsRect(line, rect) {
+  return lineIntersectsSegment(line, rect.x, rect.y, rect.x + rect.width, rect.y) || // top
+    lineIntersectsSegment(line, rect.x, rect.y, rect.x, rect.y + rect.height) || // left
+    lineIntersectsSegment(line, rect.x, rect.y + rect.height, rect.x + rect.width, rect.y + rect.height) || // bottom
+    lineIntersectsSegment(line, rect.x + rect.width, rect.y, rect.x + rect.width, rect.y + rect.height); // right
+}
+
+function lineIntersectsSegment(line, x1, y1, x2, y2) {
+  // TODO: precalculate some of this shit
+  const denom = (line.x1 - line.x2) * (y1 - y2) - (line.y1 - line.y2) * (x1 - x2);
+
+  if (denom === 0) {
+    return false;
+  }
+
+  const x = Math.floor(((line.x1 * line.y2 - line.y1 * line.x2) * (x1 - x2) - (line.x1 - line.x2) * (x1 * y2 - y1 * x2)) / denom);
+  const y = Math.floor(((line.x1 * line.y2 - line.y1 * line.x2) * (y1 - y2) - (line.y1 - line.y2) * (x1 * y2 - y1 * x2)) / denom);
+
+  const maxX = Math.max(x1, x2);
+  const minX = Math.min(x1, x2);
+  const maxY = Math.max(y1, y2);
+  const minY = Math.min(y1, y2);
+
+  if (x <= maxX && x >= minX &&
+    y <= maxY && y >= minY ) {
+    return {x: x, y: y};
+  }
+
+  return false;
+}
+
+function segmentIntersectsSegment(line, x1, y1, x2, y2) {
+  var intersects = lineIntersectsSegment(line, x1, y1, x2, y2);
+
+  if (!intersects) {
+    return false;
+  }
+
+  if (!(intersects.x >= Math.min(line.x1, line.x2) &&
+    intersects.x <= Math.max(line.x1, line.x2) &&
+    intersects.y >= Math.min(line.y1, line.y2) &&
+    intersects.y <= Math.max(line.y1, line.y2))) {
+    return false;
+  }
+  return intersects;
+}
+
+/*function collisions(sprite, colliders) {
+  colliders.forEach(function (collider) {
+    if (sprite.y - sprite.lastY > 0) {
+      let halfWidth = sprite.width / 2;
+      let intersects = segmentIntersectsSegment(collider, sprite.x + halfWidth, sprite.y, sprite.x + halfWidth, sprite.y + sprite.height);
+      if(intersects) {
+        sprite.y = intersects.y - sprite.height;
+      }
+    }
+
+    if (sprite.x - sprite.lastX > 0) {
+      let halfHeight = sprite.height / 2;
+      let intersects = segmentIntersectsSegment(collider, sprite.x, sprite.y + halfHeight, sprite.x + sprite.width, sprite.y + halfHeight);
+      if(intersects) {
+        sprite.x = intersects.x - sprite.width;
+      }
+    }
+  });
+}*/
+
+function log(msg) {
+  //console.log(msg);
+}
+
+function collisions(sprite, colliders) {
+  const dirY = sprite.y - sprite.lastY;
+  const dirX = sprite.x - sprite.lastX;
+
+  colliders.forEach(function (collider) {
+    let intersects, x, y;
+
+    if(!collider.slope) {
+      intersects = segmentIntersectsSegment(collider, sprite.x, sprite.y, sprite.x + sprite.width, sprite.y); // top
+      if (intersects) {
+        log('top', intersects);
+        sprite.x = intersects.x;
+      }
+
+      if (intersects = segmentIntersectsSegment(collider, sprite.x, sprite.y + sprite.height, sprite.x + sprite.width, sprite.y + sprite.height)) { // bottom
+        log('bottom', intersects);
+        sprite.x = intersects.x - sprite.width - 1;
+      }
+    }
+
+    intersects = segmentIntersectsSegment(collider, sprite.x, sprite.y, sprite.x, sprite.y + sprite.height); // left
+    if (intersects) {
+      log('left', intersects);
+      sprite.y = intersects.y - sprite.height - 1;
+    }
+
+    if(intersects = segmentIntersectsSegment(collider, sprite.x + sprite.width, sprite.y, sprite.x + sprite.width, sprite.y + sprite.height)) {// right
+      log('right', intersects);
+      sprite.y = intersects.y - sprite.height - 1;
+    }
+
+
+  });
+}
+
 const getInputs = Input();
 const getFrames = Frame();
 const viewport = Viewport;
@@ -197,6 +308,7 @@ scene
     const context2d = canvas.getContext('2d');
     const colliders = Object.freeze(scene.colliders);
 
+    /*
     const collidersX = colliders.map(collider => {
       return {
         x: collider.x,
@@ -222,6 +334,7 @@ scene
         rangeMax: collider.x + collider.width
       }
     });
+    */
 
     const sprites = Object.freeze(scene.sprites);
     const player = sprites[0];
@@ -244,6 +357,9 @@ scene
       }
 
       sprites.forEach(function (sprite) {
+        sprite.lastX = sprite.x;
+        sprite.lastY = sprite.y;
+
         const velocityX = getVelocity(sprite, 'x', elapsed);
         const x = getPositionDelta(sprite.x, velocityX, elapsed);
 
@@ -256,9 +372,14 @@ scene
         const boundsDiffY = getInnerDiff(y, sprite.height, 0, sceneBounds.height);
         const y1 = resolveCollision(boundsDiffY, y);
 
+        /*colliders.forEach(function (collider) {
+          console.log(lineIntersectsRect(collider, sprite));
+        });*/
+
         let x2 = x1;
         let y2 = y1;
 
+        /*
         let vals = getCollidersInRange(y1, y1 + sprite.height, collidersX)
           .map(function (collider) {
             let maxDiff = getMaxPositionDiff(x1 + sprite.width, collider.positionMin);
@@ -266,40 +387,15 @@ scene
 
             return (Math.min(Math.abs(maxDiff), Math.abs(minDiff)));
           });
-
-        console.log(vals);
-
-        //const x2 = getCollisionResolve(collidersX, x1, sprite.width, y1, y1 + sprite.height);
-        //const y2 = getCollisionResolve(collidersY, y1, sprite.height, x1, x1 + sprite.width);
-
-        /*const intersectedCollidersX = getIntersectedColliders(
-          collidersX,
-          x1, x1 + sprite.width,
-          y1, y1 + sprite.height
-        );
-
-        console.log('X', intersectedCollidersX);
-
-        const x2 = (intersectedCollidersX.length) ? x1 + Math.min.apply(null, intersectedCollidersX) : x1;
-
-        const intersectedCollidersY = getIntersectedColliders(
-          collidersY,
-          y1, y1 + sprite.height,
-          x2, x2 + sprite.width
-        );
-
-        console.log('Y', intersectedCollidersY);
-
-        const y2 = (intersectedCollidersY.length) ? y1 + Math.min.apply(null, intersectedCollidersY) : y1;*/
-        //const intersectedCollidersY = getIntersectedColliders(collidersY, y1, y1 + sprite.height, x1, x1 + sprite.width);
-        //const x2 = resolveCollisions(x1, intersectionsX);
-        //const y2 = resolveCollisions(y1, intersectionsY);
+        */
 
         // mutate sprite
         sprite.velocity.x = velocityX;
         sprite.x = x2;
         sprite.velocity.y = velocityY;
         sprite.y = y2;
+
+        collisions(sprite, colliders);
 
         if (sprite === player) {
           const minMargin = viewport.marginLeft;
@@ -323,8 +419,8 @@ scene
         const pos = {x: sprite.x, y: sprite.y};
 
         render(context2d, pos, frame, viewport);
-        renderRects(context2d, colliders, viewport);
-        //renderRects(context2d, intersectedColliders, viewport, '#ff0000');
+        //renderRects(context2d, colliders, viewport);
+        renderLines(context2d, colliders, viewport);
         renderRects(context2d, sprites, viewport);
       });
 
