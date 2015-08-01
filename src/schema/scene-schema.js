@@ -38,7 +38,8 @@ function getSpriteType(sprite) {
       sprite.velocity = { x: 0, y: 0 };
       sprite.acceleration = { x: 0, y: 0 };
       sprite.maxVelocity = { x: 500, y: 500 };
-      sprite.friction = { x: 0.99, y: 0.50 };
+      //sprite.friction = { x: 0.99, y: 0.50 };
+      sprite.friction = { x: 0.99, y: 0.99 };
       return sprite;
     });
 }
